@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import routes from "./routes/authRoutes.js";
 
+
 const app = express();
 const PORT = 4000;
 

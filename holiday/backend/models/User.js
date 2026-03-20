@@ -1,3 +1,8 @@
+/**
+ * User.js
+ * Mongoose model for registered users.
+ * Authors: Karen Ferreira Magalhaes, Nataly Fonseca Mendes, Percy Focazio-Moran, Rafiq Abudulai
+ */
 import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
@@ -5,29 +10,31 @@ const { Schema } = mongoose;
 export const UserSchema = new Schema({
   firstName: {
     type: String,
-    required: true,
+    required: [true, "First name is required." ],
     trim: true,
     minlength: 2,
     maxlength: 50
   },
   lastName: {
     type: String,
-    required: true,
+    required: [true, "Last name is required." ],
     trim: true,
     minlength: 2,
     maxlength: 50
   },
   email: {
     type: String,
-    required: true,
+    required: [true, "Email is required." ],
     unique: true,
     trim: true,
-    lowercase: true
+    lowercase: true,
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email address.']
   },
   phone: {
-    type: Number,
+    type: String,
     trim: true,
-    unique: true
+    unique: true,
+    match: [/^\+?[\d\s\-().]{7,20}$/, 'Please provide a valid phone number.']
   },
   passwordHash: {
     type: String,
@@ -35,6 +42,7 @@ export const UserSchema = new Schema({
   },
   preferredCountry: {
     type: String,
+    trim: true,
     default: "Ireland"
   },
   preferredMonth: {

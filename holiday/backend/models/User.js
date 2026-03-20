@@ -36,6 +36,11 @@ export const UserSchema = new Schema({
     unique: true,
     match: [/^\+?[\d\s\-().]{7,20}$/, 'Please provide a valid phone number.']
   },
+  role: {
+  type: String,
+  enum: ['user', 'admin'],
+  default: 'user'
+  },
   passwordHash: {
     type: String,
     required: true

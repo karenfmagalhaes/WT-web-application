@@ -1,3 +1,8 @@
+/**
+ * index.js
+ * Main entry point for the Holiday Calendar backend server.
+ * Authors: Karen Ferreira Magalhaes, Nataly Fonseca Mendes, Percy Focazio-Moran, Rafiq Abudulai
+ */
 import express from "express";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";

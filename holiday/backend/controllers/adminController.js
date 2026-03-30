@@ -10,7 +10,7 @@ import Holiday from '../models/Holiday.js';
 import Suggestion from '../models/Suggestion.js';
 
 // Helper: Check the session user is an admin
-const isAdmin = (req, res) => {
+export const isAdmin = (req, res) => {
   if (!req.session.user) {
     res.status(401).json({ message: 'You must be logged in.' });
     return false;

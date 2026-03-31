@@ -1,6 +1,14 @@
+/**
+ * db.js
+ * Handles connection to MongoDB
+ * All endpoints check that the logged-in user has the 'admin' role.
+ * Authors: Karen Ferreira Magalhaes, Nataly Fonseca Mendes, Percy Focazio-Moran, Rafiq Abudulai
+ */
+
 const { MongoClient, ServerApiVersion } = require("mongodb");
-const uri =
-  "mongodb+srv://db_admin:<W0rk$0nMyM4ch1n3>@cluster0.fizcvhx.mongodb.net/?appName=Cluster0"; // Create a MongoClient with a MongoClientOptions object to set the Stable API version
+const uri = process.env.MONGO_URI;
+
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -8,6 +16,7 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)

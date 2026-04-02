@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../models/Suggestion.js', () => ({ // 
+vi.mock('../../models/Suggestion.js', () => ({ // Mock the Suggestion model with necessary methods for testing
     default: {
         find: vi.fn(),
         findById: vi.fn(),
@@ -8,17 +8,19 @@ vi.mock('../../models/Suggestion.js', () => ({ //
     }
 }));
 
-vi.mock('../../models/Holiday.js', () => ({
+vi.mock('../../models/Holiday.js', () => ({ // Mock the Holiday model, we only need to mock the constructor for the approveSuggestion test
     default: vi.fn()
 }));
 
-vi.mock('../../models/User.js', () => ({
+vi.mock('../../models/User.js', () => ({ // Mock the User model with necessary methods for testing
     default: {
-        find: vi.fn()
+        find: vi.fn(),
+        findByIdAndDelete: vi.fn(),
+        findByIdAndUpdate: vi.fn()
     }
 }));
 
-import { isAdmin, getSuggestions, approveSuggestion, rejectSuggestion, deleteSuggestion, getAllUsers, deleteUser } from '../../controllers/adminController.js';
+import { isAdmin, getSuggestions, approveSuggestion, rejectSuggestion, deleteSuggestion, getAllUsers, deleteUser, updateUserRole } from '../../controllers/adminController.js';
 import Suggestion from '../../models/Suggestion.js';
 import Holiday from '../../models/Holiday.js';
 import User from '../../models/User.js';
@@ -36,6 +38,12 @@ const createMockRes = () => { // mock function to create a fake response object 
 
 const createMockReq = (data = {}) => ({ // mock function to create a fake request object for testing
     session: { user: { role: 'admin' } }, // default admin
+    query: {},
+    ...data
+});
+
+const createNonAdminReq = (data = {}) => ({
+    session: { user: { role: 'user', id: 'user123' } },
     query: {},
     ...data
 });
@@ -88,9 +96,9 @@ describe('getSuggestions', () => {
             })
         });
 
-        await getSuggestions(req, res); // call function being tested
+        await getSuggestions(req, res); 
 
-        expect(res.status).toHaveBeenCalledWith(200); // 
+        expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({ // check that the response contains the expected data
             message: 'Suggestions retrieved successfully.',
             count: 1,
@@ -140,7 +148,7 @@ describe('getSuggestions', () => {
             throw new Error('Database error'); // simulate a database error
         });
 
-        await getSuggestions(req, res); // call function being tested
+        await getSuggestions(req, res); 
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
@@ -157,7 +165,7 @@ describe('approveSuggestion', () => { // test for the approveSuggestion function
 
         Suggestion.findById.mockResolvedValue(null); // mock database query to return null, simulating not found
 
-        await approveSuggestion(req, res); // call function being tested
+        await approveSuggestion(req, res); 
 
         expect(Suggestion.findById).toHaveBeenCalledWith('123');
         expect(res.status).toHaveBeenCalledWith(404);
@@ -178,13 +186,13 @@ describe('approveSuggestion', () => { // test for the approveSuggestion function
 
         Suggestion.findById.mockResolvedValue(existingSuggestion);  // mock database query to return a suggestion that has already been approved
 
-        await approveSuggestion(req, res); // call function being tested
+        await approveSuggestion(req, res); 
 
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion has already been approved.' });
     });
 
-    it('approves pending suggestion and creates holiday', async () => { // happy path: pending suggestion becomes approved and holiday gets created
+    it('approves pending suggestion and creates holiday', async () => { // pending suggestion becomes approved and holiday gets created
         const req = {
             session: { user: { role: 'admin' } },
             params: { suggestionId: 'abc123' }
@@ -241,7 +249,7 @@ describe('approveSuggestion', () => { // test for the approveSuggestion function
         castError.name = 'CastError';
         Suggestion.findById.mockRejectedValue(castError); //database throws error instead of returning a suggestion
 
-        await approveSuggestion(req, res); // call function being tested
+        await approveSuggestion(req, res); 
 
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ message: 'Invalid suggestion ID.' });
@@ -274,7 +282,7 @@ describe('rejectSuggestion', () => { // test for the rejectSuggestion function
 
         Suggestion.findById.mockResolvedValue(null); // mock database query to return null, simulating not found
 
-        await rejectSuggestion(req, res); // call function being tested
+        await rejectSuggestion(req, res); 
 
         expect(Suggestion.findById).toHaveBeenCalledWith('123');
         expect(res.status).toHaveBeenCalledWith(404);
@@ -295,7 +303,7 @@ describe('rejectSuggestion', () => { // test for the rejectSuggestion function
 
         Suggestion.findById.mockResolvedValue(existingSuggestion); // mock database query to return a suggestion that has already been approved
 
-        await rejectSuggestion(req, res); // call function being tested
+        await rejectSuggestion(req, res); 
 
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion has already been approved.' });
@@ -335,11 +343,11 @@ describe('rejectSuggestion', () => { // test for the rejectSuggestion function
         };
         const res = createMockRes();
 
-        const castError = new Error('Invalid ObjectId');  
+        const castError = new Error('Invalid ObjectId');  // simulate MongoDB CastError
         castError.name = 'CastError';
         Suggestion.findById.mockRejectedValue(castError);
 
-        await rejectSuggestion(req, res); // call function being tested
+        await rejectSuggestion(req, res); 
 
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({ message: 'Invalid suggestion ID.' });
@@ -354,7 +362,7 @@ describe('rejectSuggestion', () => { // test for the rejectSuggestion function
 
         Suggestion.findById.mockRejectedValue(new Error('Database down'));
 
-        await rejectSuggestion(req, res); // call function being tested
+        await rejectSuggestion(req, res); 
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
@@ -362,7 +370,7 @@ describe('rejectSuggestion', () => { // test for the rejectSuggestion function
 });
 
 describe('deleteSuggestion', () => { //test for the deleteSuggestion function
-    it('Returns 404 when suggestion is not found', async () => {
+    it('returns 404 when suggestion is not found', async () => {
         const req = {
             session: { user: { role: 'admin'}},
             params: { suggestionId: '123'}
@@ -378,7 +386,7 @@ describe('deleteSuggestion', () => { //test for the deleteSuggestion function
         expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion not found.' });
     });
 
-    it ('Deletes suggestion successfully', async () => {
+    it('deletes suggestion successfully', async () => {
         const req = {
             session: { user: { role: 'admin'}},
             params: { suggestionId: '123'}
@@ -431,7 +439,7 @@ describe('deleteSuggestion', () => { //test for the deleteSuggestion function
     });
 });
 
-describe('getAllUsers', () => {
+describe('getAllUsers', () => { // test for the getAllUsers function
     it('returns all users successfully', async () => {
         const req = {
             session: { user: { role: 'admin' } }
@@ -442,16 +450,16 @@ describe('getAllUsers', () => {
             { firstName: 'John', email:'john@test.com'},
             { firstName: 'Jane', email:'jane@test.com'}                   
         ];
-        User.find.mockReturnValue({ // mock chained methods
-            select: vi.fn().mockReturnValue({
-                sort: vi.fn().mockResolvedValue(mockUsers) // mock database query to return the list of users
-            })
-        });
+        const sortMock = vi.fn().mockResolvedValue(mockUsers);
+        const selectMock = vi.fn().mockReturnValue({ sort: sortMock });
+        User.find.mockReturnValue({ select: selectMock });
 
         await getAllUsers(req, res);
 
         expect(User.find).toHaveBeenCalledWith({}); // check that the database query was called with the correct parameters
-        expect(res.status).toHaveBeenCalledWith(200);
+        expect(selectMock).toHaveBeenCalledWith('-passwordHash'); // check that the passwordHash field was excluded from the query results
+        expect(sortMock).toHaveBeenCalledWith({ createdAt: -1 }); // check that the results were sorted by creation date in descending order
+        expect(res.status).toHaveBeenCalledWith(200); 
         expect(res.json).toHaveBeenCalledWith({
             message: 'Users retrieved successfully.',
             count: 2, // check that the response contains the correct count of users
@@ -473,6 +481,288 @@ describe('getAllUsers', () => {
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
+    });
+});
+
+describe('deleteUser', () => { // tests for deleteUser controller
+    it('returns 400 when admin tries to delete own account', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'admin123' }
+        };
+        const res = createMockRes();
+
+        await deleteUser(req, res); // call function being tested
+
+        expect(User.findByIdAndDelete).not.toHaveBeenCalled(); // check that the database query was not called since the controller should have returned early
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'You cannot delete your own admin account.' });
+    });
+
+    it('returns 404 when user is not found', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' }
+        };
+        const res = createMockRes();
+
+        User.findByIdAndDelete.mockResolvedValue(null); // simulate no user found
+
+        await deleteUser(req, res); // call function being tested
+
+        expect(User.findByIdAndDelete).toHaveBeenCalledWith('user456');
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({ message: 'User not found.' });
+    });
+
+    it('deletes another user successfully', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' }
+        };
+        const res = createMockRes();
+
+        User.findByIdAndDelete.mockResolvedValue({ _id: 'user456' }); // simulate successful deletion of the user
+
+        await deleteUser(req, res); 
+
+        expect(User.findByIdAndDelete).toHaveBeenCalledWith('user456');
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ message: 'User deleted successfully.' });
+    });
+
+    it('returns 400 for invalid user ID', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'invalid-id' }
+        };
+        const res = createMockRes();
+
+        const castError = new Error('Invalid ObjectId');
+        castError.name = 'CastError';
+        User.findByIdAndDelete.mockRejectedValue(castError); // simulate database throwing a CastError when trying to delete with an invalid ID
+
+        await deleteUser(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Invalid user ID.' });
+    });
+
+    it('returns 500 on unexpected error', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' }
+        };
+        const res = createMockRes();
+
+        User.findByIdAndDelete.mockRejectedValue(new Error('Database down')); 
+
+        await deleteUser(req, res); 
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
+    });
+});
+
+describe('updateUserRole', () => { // tests for updateUserRole controller
+    it('returns 400 when role is missing', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' },
+            body: {}
+        };
+        const res = createMockRes();
+
+        await updateUserRole(req, res); // early validation should fail before hitting DB
+
+        expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Invalid role. Must be one of: user, admin.'
+        });
+    });
+
+    it('returns 400 when role is invalid', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' },
+            body: { role: 'manager' }
+        };
+        const res = createMockRes();
+
+        await updateUserRole(req, res); // invalid role should be rejected by controller validation
+
+        expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Invalid role. Must be one of: user, admin.'
+        });
+    });
+
+    it('returns 404 when user is not found', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' },
+            body: { role: 'admin' }
+        };
+        const res = createMockRes();
+
+        User.findByIdAndUpdate.mockReturnValue({ // Mongoose chain: findByIdAndUpdate(...).select(...)
+            
+            select: vi.fn().mockResolvedValue(null)
+        });
+
+        await updateUserRole(req, res); // call function being tested
+
+        expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+            'user456',
+            { role: 'admin' },
+            { new: true }
+        );
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({ message: 'User not found.' });
+    });
+
+    it('updates user role successfully', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' },
+            body: { role: 'admin' }
+        };
+        const res = createMockRes();
+
+        const updatedUser = {
+            _id: 'user456',
+            firstName: 'Jane',
+            role: 'admin'
+        };
+
+        User.findByIdAndUpdate.mockReturnValue({// Return the updated user document after select('-passwordHash')
+            
+            select: vi.fn().mockResolvedValue(updatedUser)
+        });
+
+        await updateUserRole(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            message: "User role updated to 'admin'.",
+            user: updatedUser
+        });
+    });
+
+    it('returns 400 for invalid user ID', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'invalid-id' },
+            body: { role: 'user' }
+        };
+        const res = createMockRes();
+
+        const castError = new Error('Invalid ObjectId');
+        castError.name = 'CastError';
+        User.findByIdAndUpdate.mockReturnValue({ // Simulate cast failure during query execution
+           
+            select: vi.fn().mockRejectedValue(castError)
+        });
+
+        await updateUserRole(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Invalid user ID.' });
+    });
+
+    it('returns 500 on unexpected error', async () => {
+        const req = {
+            session: { user: { role: 'admin', id: 'admin123' } },
+            params: { userId: 'user456' },
+            body: { role: 'user' }
+        };
+        const res = createMockRes();
+
+        User.findByIdAndUpdate.mockReturnValue({// Generic failure path not handled by CastError branch
+           
+            select: vi.fn().mockRejectedValue(new Error('Database down'))
+        });
+
+        await updateUserRole(req, res); 
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
+    });
+});
+
+describe('admin access guard on handlers', () => { // tests to ensure that non-admin users are blocked from accessing admin routes
+    it('blocks non-admin access to getSuggestions', async () => {
+        const req = createNonAdminReq();
+        const res = createMockRes();
+
+        await getSuggestions(req, res);
+
+        expect(Suggestion.find).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Access denied. Admins only.' });
+    });
+
+    it('blocks non-admin access to approveSuggestion', async () => {
+        const req = createNonAdminReq({ params: { suggestionId: 's1' } });
+        const res = createMockRes();
+
+        await approveSuggestion(req, res);
+
+        expect(Suggestion.findById).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('blocks non-admin access to rejectSuggestion', async () => {
+        const req = createNonAdminReq({ params: { suggestionId: 's1' } });
+        const res = createMockRes();
+
+        await rejectSuggestion(req, res);
+
+        expect(Suggestion.findById).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('blocks non-admin access to deleteSuggestion', async () => {
+        const req = createNonAdminReq({ params: { suggestionId: 's1' } });
+        const res = createMockRes();
+
+        await deleteSuggestion(req, res);
+
+        expect(Suggestion.findByIdAndDelete).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('blocks non-admin access to getAllUsers', async () => {
+        const req = createNonAdminReq();
+        const res = createMockRes();
+
+        await getAllUsers(req, res);
+
+        expect(User.find).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('blocks non-admin access to deleteUser', async () => {
+        const req = createNonAdminReq({ params: { userId: 'u1' } });
+        const res = createMockRes();
+
+        await deleteUser(req, res);
+
+        expect(User.findByIdAndDelete).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('blocks non-admin access to updateUserRole', async () => {
+        const req = createNonAdminReq({ params: { userId: 'u1' }, body: { role: 'admin' } });
+        const res = createMockRes();
+
+        await updateUserRole(req, res);
+
+        expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Access denied. Admins only.' });
     });
 });
 

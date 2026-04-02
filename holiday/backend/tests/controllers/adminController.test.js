@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../models/Suggestion.js', () => ({ // 
     default: {
         find: vi.fn(),
-        findById: vi.fn()
+        findById: vi.fn(),
+        findByIdAndDelete: vi.fn()
     }
 }));
 
@@ -11,9 +12,16 @@ vi.mock('../../models/Holiday.js', () => ({
     default: vi.fn()
 }));
 
-import { isAdmin, getSuggestions, approveSuggestion, rejectSuggestion } from '../../controllers/adminController.js';
+vi.mock('../../models/User.js', () => ({
+    default: {
+        find: vi.fn()
+    }
+}));
+
+import { isAdmin, getSuggestions, approveSuggestion, rejectSuggestion, deleteSuggestion, getAllUsers, deleteUser } from '../../controllers/adminController.js';
 import Suggestion from '../../models/Suggestion.js';
 import Holiday from '../../models/Holiday.js';
+import User from '../../models/User.js';
 
 beforeEach(() => {
     vi.clearAllMocks(); // Clear mock history before each test to ensure tests are independent
@@ -254,6 +262,7 @@ describe('approveSuggestion', () => { // test for the approveSuggestion function
         expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
     });
 });
+
 describe('rejectSuggestion', () => { // test for the rejectSuggestion function 
 
     it('returns 404 when suggestion is not found', async () => { // test case for non-existent suggestion
@@ -351,5 +360,123 @@ describe('rejectSuggestion', () => { // test for the rejectSuggestion function
         expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
     });
 });
+
+describe('deleteSuggestion', () => { //test for the deleteSuggestion function
+    it('Returns 404 when suggestion is not found', async () => {
+        const req = {
+            session: { user: { role: 'admin'}},
+            params: { suggestionId: '123'}
+        };
+        const res = createMockRes();
+        
+        Suggestion.findByIdAndDelete.mockResolvedValue(null); // mock database query to return null, simulating not found
+
+        await deleteSuggestion(req, res);
+
+        expect(Suggestion.findByIdAndDelete).toHaveBeenCalledWith('123');
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion not found.' });
+    });
+
+    it ('Deletes suggestion successfully', async () => {
+        const req = {
+            session: { user: { role: 'admin'}},
+            params: { suggestionId: '123'}
+        };
+        const res = createMockRes();
+        const deletedSuggestion = { _id: '123'};
+
+        Suggestion.findByIdAndDelete.mockResolvedValue(deletedSuggestion); // mock database query to return the deleted suggestion
+
+        await deleteSuggestion(req, res);
+
+        expect(Suggestion.findByIdAndDelete).toHaveBeenCalledWith('123');
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion deleted successfully.' });
+
+    });
+
+    it('returns 400 when suggestion ID is invalid', async () => {
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: 'invalid-id' }
+        };
+        const res = createMockRes();
+
+        const castError = new Error('Invalid ID'); // simulate MongoDB CastError
+        castError.name = 'CastError';
+
+        Suggestion.findByIdAndDelete.mockRejectedValue(castError); // mock database query to throw CastError
+
+        await deleteSuggestion(req, res);
+        
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Invalid suggestion ID.' });
+    });
+    
+    it('returns 500 on unexpected error', async () => {
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: '123' }
+        };
+        const res = createMockRes();
+
+        Suggestion.findByIdAndDelete.mockRejectedValue(new Error('Database down')); // mock database query to throw generic error
+
+        await deleteSuggestion(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
+    
+    });
+});
+
+describe('getAllUsers', () => {
+    it('returns all users successfully', async () => {
+        const req = {
+            session: { user: { role: 'admin' } }
+        };
+        const res = createMockRes();
+
+        const mockUsers = [
+            { firstName: 'John', email:'john@test.com'},
+            { firstName: 'Jane', email:'jane@test.com'}                   
+        ];
+        User.find.mockReturnValue({ // mock chained methods
+            select: vi.fn().mockReturnValue({
+                sort: vi.fn().mockResolvedValue(mockUsers) // mock database query to return the list of users
+            })
+        });
+
+        await getAllUsers(req, res);
+
+        expect(User.find).toHaveBeenCalledWith({}); // check that the database query was called with the correct parameters
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Users retrieved successfully.',
+            count: 2, // check that the response contains the correct count of users
+            users: mockUsers 
+        });
+    });
+
+    it('returns 500 if database query fails', async () => {
+        const req = {
+            session: { user: { role: 'admin' } }
+        };
+        const res = createMockRes();
+
+        User.find.mockImplementation(() => {
+            throw new Error('Database error'); // simulate database error
+        });
+
+        await getAllUsers(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
+    });
+});
+
+
+
 
 

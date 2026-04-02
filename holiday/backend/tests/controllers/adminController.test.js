@@ -2,12 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../models/Suggestion.js', () => ({ // 
     default: {
-        find: vi.fn()
+        find: vi.fn(),
+        findById: vi.fn()
     }
 }));
 
-import { isAdmin, getSuggestions } from '../../controllers/adminController.js';
+vi.mock('../../models/Holiday.js', () => ({
+    default: vi.fn()
+}));
+
+import { isAdmin, getSuggestions, approveSuggestion, rejectSuggestion } from '../../controllers/adminController.js';
 import Suggestion from '../../models/Suggestion.js';
+import Holiday from '../../models/Holiday.js';
 
 beforeEach(() => {
     vi.clearAllMocks(); // Clear mock history before each test to ensure tests are independent
@@ -127,6 +133,219 @@ describe('getSuggestions', () => {
         });
 
         await getSuggestions(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
+    });
+});
+describe('approveSuggestion', () => { // test for the approveSuggestion function
+
+    it('returns 404 when suggestion is not found', async () => { // test case for non-existent suggestion
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: '123' } // simulate request with a suggestion ID that does not exist in the database
+        };
+        const res = createMockRes();
+
+        Suggestion.findById.mockResolvedValue(null); // mock database query to return null, simulating not found
+
+        await approveSuggestion(req, res); // call function being tested
+
+        expect(Suggestion.findById).toHaveBeenCalledWith('123');
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion not found.' });
+    });
+
+    it('returns 400 when suggestion has already been processed', async () => { // test case for already approved/rejected suggestion
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: '123' }
+        };
+        const res = createMockRes();
+
+        const existingSuggestion = {
+            status: 'approved',
+            save: vi.fn()
+        };
+
+        Suggestion.findById.mockResolvedValue(existingSuggestion);  // mock database query to return a suggestion that has already been approved
+
+        await approveSuggestion(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion has already been approved.' });
+    });
+
+    it('approves pending suggestion and creates holiday', async () => { // happy path: pending suggestion becomes approved and holiday gets created
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: 'abc123' }
+        };
+        const res = createMockRes();
+
+        const suggestion = { // mock suggestion data
+            _id: 'abc123',
+            name: 'Sample Holiday',
+            country: 'Canada',
+            date: '2026-12-25T00:00:00.000Z',
+            category: 'National',
+            description: 'Holiday description',
+            status: 'pending', 
+            save: vi.fn().mockResolvedValue(true) // mock the save method to simulate successful database save
+        };
+
+        const holidayInstance = { // fake holiday instance 
+            save: vi.fn().mockResolvedValue(true)
+        };
+
+        Suggestion.findById.mockResolvedValue(suggestion); // database return the pending suggestion
+        Holiday.mockImplementation((data) => ({ ...holidayInstance, ...data })); // mock the Holiday constructor to return our fake instance with the provided data
+
+        await approveSuggestion(req, res); // call function being tested
+
+        expect(suggestion.status).toBe('approved'); 
+        expect(suggestion.save).toHaveBeenCalled();
+        expect(Holiday).toHaveBeenCalledWith({
+            name: 'Sample Holiday',
+            country: 'Canada',
+            date: '2026-12-25T00:00:00.000Z',
+            month: 12, // check that the month was correctly calculated from the date
+            category: 'National',
+            description: 'Holiday description'
+        });
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ // check important parts of the response without needing to match the entire object
+                message: 'Suggestion approved and added to holidays.',
+                suggestion // check that the response contains the approved suggestion data
+            })
+        );
+    });
+
+    it('returns 400 when suggestion ID is invalid', async () => { // CastError path
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: 'invalid-id' }
+        };
+        const res = createMockRes();
+
+        const castError = new Error('Invalid ObjectId'); // simulate MongoDB error
+        castError.name = 'CastError';
+        Suggestion.findById.mockRejectedValue(castError); //database throws error instead of returning a suggestion
+
+        await approveSuggestion(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Invalid suggestion ID.' });
+    });
+
+    it('returns 500 on unexpected error', async () => { // generic server error path
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: '123' }
+        };
+        const res = createMockRes();
+
+        Suggestion.findById.mockRejectedValue(new Error('Database down'));
+
+        await approveSuggestion(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });
+    });
+});
+describe('rejectSuggestion', () => { // test for the rejectSuggestion function 
+
+    it('returns 404 when suggestion is not found', async () => { // test case for non-existent suggestion
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: '123' }
+        };
+        const res = createMockRes();
+
+        Suggestion.findById.mockResolvedValue(null); // mock database query to return null, simulating not found
+
+        await rejectSuggestion(req, res); // call function being tested
+
+        expect(Suggestion.findById).toHaveBeenCalledWith('123');
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion not found.' });
+    });
+
+    it('returns 400 when suggestion has already been processed', async () => { // test case for already approved/rejected suggestion
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: '123' }
+        };
+        const res = createMockRes();
+
+        const existingSuggestion = { // mock suggestion that has already been approved
+            status: 'approved',
+            save: vi.fn()
+        };
+
+        Suggestion.findById.mockResolvedValue(existingSuggestion); // mock database query to return a suggestion that has already been approved
+
+        await rejectSuggestion(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Suggestion has already been approved.' });
+    });
+
+    it('rejects pending suggestion successfully', async () => { // pending suggestion becomes rejected
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: 'abc123' }
+        };
+        const res = createMockRes();
+
+        const suggestion = { // mock suggestion data
+            _id: 'abc123',
+            name: 'Sample Holiday',
+            status: 'pending',
+            save: vi.fn().mockResolvedValue(true)
+        };
+
+        Suggestion.findById.mockResolvedValue(suggestion); // database returns pending suggestion
+
+        await rejectSuggestion(req, res); // call function being tested
+
+        expect(suggestion.status).toBe('rejected');
+        expect(suggestion.save).toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Suggestion rejected.',
+            suggestion
+        });
+    });
+
+    it('returns 400 when suggestion ID is invalid', async () => { // CastError path
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: 'invalid-id' }
+        };
+        const res = createMockRes();
+
+        const castError = new Error('Invalid ObjectId');  
+        castError.name = 'CastError';
+        Suggestion.findById.mockRejectedValue(castError);
+
+        await rejectSuggestion(req, res); // call function being tested
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Invalid suggestion ID.' });
+    });
+
+    it('returns 500 on unexpected error', async () => { // generic server error path
+        const req = {
+            session: { user: { role: 'admin' } },
+            params: { suggestionId: '123' }
+        };
+        const res = createMockRes();
+
+        Suggestion.findById.mockRejectedValue(new Error('Database down'));
+
+        await rejectSuggestion(req, res); // call function being tested
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ message: 'Server error.' });

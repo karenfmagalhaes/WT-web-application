@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getSession, logoutUser, registerUser } from '../../controllers/authController.js';
+import { getSession, logoutUser, registerUser, getUsers } from '../../controllers/authController.js';
 import{ loginUser } from '../../controllers/authController.js';
 import bcrypt from 'bcryptjs';
 import User from '../../models/User.js';
@@ -98,9 +98,9 @@ describe ('longinUser', () => { // test for loginUser function
         
         await loginUser(req, res);
 
-                expect(User.findOne).toHaveBeenCalledWith({ email: 'test@test.com'});
+        expect(User.findOne).toHaveBeenCalledWith({ email: 'test@test.com'});
         expect(res.status).toHaveBeenCalledWith(401);
-                expect(res.json).toHaveBeenCalledWith({ message: 'Invalid email or password.' });
+        expect(res.json).toHaveBeenCalledWith({ message: 'Invalid email or password.' });
     })
 
     it('returns 401 when password is incorrect', async () => { // test case for when the provided password does not match the stored password
@@ -362,7 +362,6 @@ describe('registerUser', () => { // Test suite for the registerUser function
         };
         const res = createMockRes();
 
-        
         User.findOne.mockResolvedValue(null);// Email does not exist
        
         bcrypt.hash.mockResolvedValue('hashedpassword123'); // Simulate successful password hashing
@@ -488,5 +487,97 @@ describe('registerUser', () => { // Test suite for the registerUser function
         );
     });
 });
+
+describe('getUsers', () => { // Test for the getUsers function
+    it('returns all users with count when successful', async () => { // Test case for successfully retrieving all users
+        const req = {}; // Mock request object (no specific data)
+        const res = createMockRes(); // Create a mock response object
+
+        const mockUsers = [ // Mock multiple users in database
+            {
+                _id: 'user1',
+                firstName: 'John',
+                lastName: 'Murphy',
+                email: 'john@test.com',
+                phone: '1234567890',
+                preferredCountry: 'Ireland',
+                preferredMonth: 5
+            },
+
+            {
+                _id: 'user2',
+                firstName: 'Michael',
+                lastName: 'Delaney',
+                email: 'michael@test.com',
+                phone: '0987654321',
+                preferredCountry: 'France',
+                preferredMonth: 7
+            },
+            
+            {
+                _id: 'user3',
+                firstName: 'Bob',
+                lastName: 'Johnson',
+                email: 'bob@test.com',
+                preferredCountry: 'Spain',
+                preferredMonth: 3
+            }
+        ];
+
+        User.find = vi.fn().mockReturnValue({ // Mock User.find() to return the mock users
+            select: vi.fn().mockResolvedValue(mockUsers)
+        });
+
+        await getUsers(req, res);
+
+        expect(User.find).toHaveBeenCalledWith({}); // Verify User.find was called with empty object to get all users
+        expect(User.find({}).select).toHaveBeenCalledWith('-passwordHash');  // Verify .select("-passwordHash") was called to exclude password hashes
+        expect(res.status).toHaveBeenCalledWith(200);// Verify 200 status and correct response structure
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Users retrieved.',
+            count: 3,
+            users: mockUsers
+        });
+    });
+
+    it('returns empty users array when no users exist', async () => { // Test case for when database has no users
+        const req = {};
+        const res = createMockRes();
+
+        // Mock User.find() to return empty array
+        User.find = vi.fn().mockReturnValue({
+            select: vi.fn().mockResolvedValue([])
+        });
+
+        await getUsers(req, res);
+
+        // Verify 200 status with count of 0
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Users retrieved.',
+            count: 0,
+            users: []
+        });
+    });
+
+    it('returns 500 error when database query fails', async () => { // Test case for server error during user retrieval
+        const req = {};
+        const res = createMockRes();
+
+        // Mock User.find() to throw an error (simulating database failure)
+        User.find = vi.fn().mockReturnValue({
+            select: vi.fn().mockRejectedValue(new Error('Database connection failed'))
+        });
+
+        await getUsers(req, res);
+
+        // Verify 500 status code and error message
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Server error.'
+        });
+    });
+});
+
 
     

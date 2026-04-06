@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getSession, logoutUser, registerUser, getUsers } from '../../controllers/authController.js';
+import { getSession, logoutUser, registerUser, getUsers, getUserById } from '../../controllers/authController.js';
 import{ loginUser } from '../../controllers/authController.js';
 import bcrypt from 'bcryptjs';
 import User from '../../models/User.js';
@@ -579,5 +579,110 @@ describe('getUsers', () => { // Test for the getUsers function
     });
 });
 
+describe('getUserById', () => { // Test case for the getUserById function
+        it('returns user data when user is found', async () => { // Test case for successfully retrieving a user by ID
+            const req = {
+                params: {
+                    userId: 'user123' // Mock user ID from request parameters
+                }
+            };
+            const res = createMockRes(); // Create a mock response object
+
+            // Mock user data to be retrieved from database
+            const mockUser = {
+                _id: 'user123',
+                firstName: 'John',
+                lastName: 'Murphy',
+                email: 'john@test.com',
+                phone: '1234567890',
+                preferredCountry: 'Ireland',
+                preferredMonth: 5
+            };
+
+            // Mock User.findById() to return the mock user
+            User.findById = vi.fn().mockReturnValue({
+                select: vi.fn().mockResolvedValue(mockUser)
+            });
+
+            await getUserById(req, res);
+
+            expect(User.findById).toHaveBeenCalledWith('user123'); // Verify if User.findById was called with the correct user ID
+        
+            // Verify .select("-passwordHash") was called to exclude password hash
+            expect(User.findById('user123').select).toHaveBeenCalledWith('-passwordHash');
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith({user: mockUser});
+        });
+
+        it('returns 404 when user is not found', async () => { // Test case for when user ID is valid format but doesn't exist in database
+            const req = {
+                params: {
+                    userId: 'nonexistent123'
+                }
+            };
+            const res = createMockRes();
+
+            // Mock User.findById() to return null (user doesn't exist)
+            User.findById = vi.fn().mockReturnValue({
+                select: vi.fn().mockResolvedValue(null)
+            });
+
+            await getUserById(req, res);
+
+            // Verify User.findById was called with the correct user ID
+            expect(User.findById).toHaveBeenCalledWith('nonexistent123');
+        
+            expect(res.status).toHaveBeenCalledWith(404);
+            expect(res.json).toHaveBeenCalledWith({
+                message: 'User not found.'
+            });
+        });
+
+        it('returns 400 when user ID format is invalid (CastError)', async () => { // Test case for invalid MongoDB ObjectId format
+            const req = {
+                params: {
+                    userId: 'invalid-id-format' // Invalid MongoDB ObjectId format
+                }
+            };
+            const res = createMockRes();
+
+            const castError = new Error('Invalid ObjectId'); // Mock User.findById() to throw a CastError (MongoDB error for invalid ObjectId)
+            castError.name = 'CastError';
+            User.findById = vi.fn().mockReturnValue({
+                select: vi.fn().mockRejectedValue(castError)
+            });
+
+            await getUserById(req, res);
+
+            // Verify 400 status and invalid ID message
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({
+                message: 'Invalid user ID.'
+            });
+        });
+
+        it('returns 500 error when database query fails', async () => { // Test case for server error during user retrieval
+            const req = {
+                params: {
+                    userId: 'user456'
+                }
+            };
+            const res = createMockRes();
+
+            // Mock User.findById() to throw a generic error (not CastError)
+            User.findById = vi.fn().mockReturnValue({
+                select: vi.fn().mockRejectedValue(new Error('Database connection failed'))
+            });
+
+            await getUserById(req, res);
+
+            // Verify 500 status code and error message
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({
+                message: 'Server error.'
+            });
+        });
+    });
 
     
+

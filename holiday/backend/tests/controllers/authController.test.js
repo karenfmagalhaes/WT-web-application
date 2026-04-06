@@ -6,14 +6,14 @@ import User from '../../models/User.js';
 
 
 vi.mock('../../models/User.js');
-vi.mock(bcrypt);
+vi.mock('bcryptjs');
 
-res.cookie = vi.fn();
  //
 const createMockRes = () => { // Helper function to create a mock response object
     const res = {};
     res.status = vi.fn().mockReturnValue(res);
     res.json = vi.fn().mockReturnValue(res);
+    res.cookie = vi.fn();
     return res;
 };
 
@@ -81,6 +81,8 @@ describe ('longinUser', () => { // test for loginUser function
                 message: 'Validation failed.', 
             })
         );
+    });
+
     it('returns 401 when user is not found', async () => {
         const req = {
             body: {
@@ -95,9 +97,9 @@ describe ('longinUser', () => { // test for loginUser function
         
         await loginUser(req, res);
 
-        expect(user.findOne).toHaveBeenCalledWith({ email: 'test@test.com'});
+                expect(User.findOne).toHaveBeenCalledWith({ email: 'test@test.com'});
         expect(res.status).toHaveBeenCalledWith(401);
-        expect(res.json).toHaveBeenCalledWith({ message: 'Invalid email or password'});
+                expect(res.json).toHaveBeenCalledWith({ message: 'Invalid email or password.' });
     })
 
     it('returns 401 when password is incorrect', async () => { // test case for when the provided password does not match the stored password
@@ -113,7 +115,7 @@ describe ('longinUser', () => { // test for loginUser function
         const user = { // Mock user data returned from the database
             _id:'123',
             email: 'test@test.com',
-            passwordhash: 'hashed'
+            passwordHash: 'hashed'
         };
 
         User.findOne.mockResolvedValue(user); // Simulate user found in the database
@@ -161,6 +163,7 @@ describe ('longinUser', () => { // test for loginUser function
         });
 
         expect(res.cookie).toHaveBeenNthCalledWith( // Check that the preferredCountry cookie is set with the correct value and options
+            1,
             'preferredCountry',
             'Ireland',
             expect.any(Object) 
@@ -175,7 +178,7 @@ describe ('longinUser', () => { // test for loginUser function
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: 'Login successful'
+                message: 'Login successful.'
             })
       );
 
@@ -201,4 +204,4 @@ describe ('longinUser', () => { // test for loginUser function
             expect(res.json).toHaveBeenCalledWith({ message: 'Server error during login.' });
 
         });
-    });
+    

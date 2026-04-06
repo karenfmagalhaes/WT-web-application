@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getSession } from '../../controllers/authController.js';
+import { getSession, logoutUser } from '../../controllers/authController.js';
 import{ loginUser } from '../../controllers/authController.js';
 import bcrypt from 'bcryptjs';
 import User from '../../models/User.js';
@@ -14,6 +14,7 @@ const createMockRes = () => { // Helper function to create a mock response objec
     res.status = vi.fn().mockReturnValue(res);
     res.json = vi.fn().mockReturnValue(res);
     res.cookie = vi.fn();
+    res.clearCookie = vi.fn();
     return res;
 };
 
@@ -204,4 +205,38 @@ describe ('longinUser', () => { // test for loginUser function
             expect(res.json).toHaveBeenCalledWith({ message: 'Server error during login.' });
 
         });
+
+describe('logoutUser', () => { // test for logoutUser function
+    it('returns 200 and clears cookies when logout succeeds', () => {
+        const req = {
+            session: {
+                destroy: vi.fn((callback) => callback(null)) // simulate successful session destruction
+            }
+        };
+        const res = createMockRes();
+
+        logoutUser(req, res);
+
+        expect(req.session.destroy).toHaveBeenCalled(); // Check that the session destroy method was called
+        expect(res.clearCookie).toHaveBeenCalledWith('preferredCountry');
+        expect(res.clearCookie).toHaveBeenCalledWith('lastLogin');
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Logged out successfully.' });
+    });
+
+    it('returns 500 when session destroy fails', () => {
+        const req = {
+            session: {
+                destroy: vi.fn((callback) => callback(new Error('destroy failed'))) // simulate failed session destruction
+            }
+        };
+        const res = createMockRes();
+
+        logoutUser(req, res);
+
+        expect(req.session.destroy).toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Could not log out. Please try again.' });
+    });
+});
     

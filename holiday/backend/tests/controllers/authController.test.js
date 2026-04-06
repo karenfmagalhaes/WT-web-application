@@ -489,7 +489,7 @@ describe('registerUser', () => { // Test suite for the registerUser function
 });
 
 describe('getUsers', () => { // Test for the getUsers function
-    it('returns all users with count when successful', async () => { // Test case for successfully retrieving all users
+    it('returns all users successfully', async () => { // Test case for successfully retrieving all users
         const req = {}; // Mock request object (no specific data)
         const res = createMockRes(); // Create a mock response object
 
@@ -513,7 +513,7 @@ describe('getUsers', () => { // Test for the getUsers function
                 preferredCountry: 'France',
                 preferredMonth: 7
             },
-            
+
             {
                 _id: 'user3',
                 firstName: 'Bob',

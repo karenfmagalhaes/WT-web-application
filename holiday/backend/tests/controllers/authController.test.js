@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getSession, logoutUser } from '../../controllers/authController.js';
+import { getSession, logoutUser, registerUser } from '../../controllers/authController.js';
 import{ loginUser } from '../../controllers/authController.js';
 import bcrypt from 'bcryptjs';
 import User from '../../models/User.js';
@@ -239,4 +239,254 @@ describe('logoutUser', () => { // test for logoutUser function
         expect(res.json).toHaveBeenCalledWith({ message: 'Could not log out. Please try again.' });
     });
 });
+
+describe('registerUser', () => { // Test suite for the registerUser function
+    it('returns 400 when validation fails', async () => { // Test case for validation failures (missing/invalid fields)
+        const req = {
+            body: {
+                firstName: '', // Empty first name
+                lastName: 'TestLast',
+                email: 'invalidemail', // Invalid email format
+                password: '123' // Password too short
+            },
+            session: {}
+        };
+        const res = createMockRes();
+
+        await registerUser(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Validation failed.',
+                errors: expect.any(Object) // Errors object with validation messages
+            })
+        );
+    });
+
+    it('returns 409 when email already exists', async () => { // Test case for duplicate email registration
+        const req = {
+            body: {
+                firstName: 'John',
+                lastName: 'Murphy',
+                email: 'existing@test.com',
+                password: '123456',
+                phone: '123456789',
+                preferredCountry: 'Ireland',
+                preferredMonth: 5
+            },
+            session: {}
+        };
+        const res = createMockRes();
+
+        // Simulate that email already exists in database
+        User.findOne.mockResolvedValue({ id: '999', email: 'existing@test.com' });
+
+        await registerUser(req, res);
+
+        expect(User.findOne).toHaveBeenCalledWith({ email: 'existing@test.com' });
+        expect(res.status).toHaveBeenCalledWith(409);
+        expect(res.json).toHaveBeenCalledWith({ message: 'An account with this email already exists.' });
+    });
+
+    it('returns 500 when password hashing fails', async () => { // Test case for bcrypt hash error
+        const req = {
+            body: {
+                firstName: 'John',
+                lastName: 'Doe',
+                email: 'newuser@test.com',
+                password: '123456',
+                phone: '123456789',
+                preferredCountry: 'Ireland',
+                preferredMonth: 5
+            },
+            session: {}
+        };
+        const res = createMockRes();
+
+        
+        User.findOne.mockResolvedValue(null);// Email does not exist
+        
+        bcrypt.hash.mockRejectedValue(new Error('Hashing error'));// Simulate bcrypt hash error
+
+        await registerUser(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error during registration.' });
+    });
+
+    it('returns 500 when user save fails', async () => { // Test case for database save error
+        const req = {
+            body: {
+                firstName: 'John',
+                lastName: 'Murphy',
+                email: 'newuser@test.com',
+                password: '123456',
+                phone: '123456789',
+                preferredCountry: 'Ireland',
+                preferredMonth: 5
+            },
+            session: {}
+        };
+        const res = createMockRes();
+        
+        User.findOne.mockResolvedValue(null); // Email does not exist
+       
+        bcrypt.hash.mockResolvedValue('hashedpassword');  // Simulate successful password hashing
+        
+        
+        const mockUserInstance = { // Mock User constructor and save method to throw error
+            save: vi.fn().mockRejectedValue(new Error('Database save error'))
+        };
+
+        User.mockImplementation(() => mockUserInstance); // Mock the User model to return our mock instance
+
+        await registerUser(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Server error during registration.' });
+    });
+
+    it('registers user successfully and sets session and cookie', async () => { // Test case for successful registration
+        const req = {
+            body: {
+                firstName: 'John',
+                lastName: 'Murphy',
+                email: 'newuser@test.com',
+                password: '123456',
+                phone: '555-1234',
+                preferredCountry: 'France',
+                preferredMonth: 7
+            },
+            session: {}
+        };
+        const res = createMockRes();
+
+        
+        User.findOne.mockResolvedValue(null);// Email does not exist
+       
+        bcrypt.hash.mockResolvedValue('hashedpassword123'); // Simulate successful password hashing
+        
+        // Mock saved user response
+        const savedUser = {
+            _id: 'user123',
+            firstName: 'John',
+            lastName: 'Murphy',
+            email: 'newuser@test.com',
+            passwordHash: 'hashedpassword123',
+            phone: '555-1234',
+            preferredCountry: 'France',
+            preferredMonth: 7,
+            toObject: vi.fn().mockReturnValue({ // Simulate the toObject method that Mongoose documents have
+                _id: 'user123',
+                firstName: 'John',
+                lastName: 'Murphy',
+                email: 'newuser@test.com',
+                phone: '555-1234',
+                preferredCountry: 'France',
+                preferredMonth: 7
+            })
+        };
+        
+        const mockUserInstance = {
+            save: vi.fn().mockResolvedValue(savedUser) // Simulate successful save of the user to the database
+        };
+
+        User.mockImplementation(() => mockUserInstance); // Mock the User model to return our mock instance when instantiated
+
+        await registerUser(req, res);
+
+        // Verify User.findOne was called with lowercase email
+        expect(User.findOne).toHaveBeenCalledWith({ email: 'newuser@test.com' });
+        
+        // Verify password was hashed
+        expect(bcrypt.hash).toHaveBeenCalledWith('123456', 10);
+        
+        // Verify user was saved
+        expect(mockUserInstance.save).toHaveBeenCalled();
+        
+        // Verify session is set correctly
+        expect(req.session.user).toEqual({
+            id: 'user123',
+            email: 'newuser@test.com',
+            firstName: 'John'
+        });
+        
+        // Verify preferredCountry cookie is set
+        expect(res.cookie).toHaveBeenCalledWith(
+            'preferredCountry',
+            'France',
+            expect.any(Object)
+        );
+        
+        // Verify success response
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Account created successfully.'
+            })
+        );
+    });
+
+    it('uses default values for optional fields', async () => { // Test case for default values when optional fields are not provided
+        const req = {
+            body: {
+                firstName: 'Michael',
+                lastName: 'Delaney',
+                email: 'test@test.com',
+                password: 'password123'
+                // No phone, preferredCountry, or preferredMonth provided
+            },
+            session: {}
+        };
+        const res = createMockRes();
+
+        // Email does not exist
+        User.findOne.mockResolvedValue(null);
+        // Simulate successful password hashing
+        bcrypt.hash.mockResolvedValue('hashedpassword456');
+        
+        // Mock saved user with defaults
+        const savedUser = {
+            _id: 'user456',
+            firstName: 'Michael',
+            lastName: 'Delaney',
+            email: 'test@test.com',
+            passwordHash: 'hashedpassword456',
+            preferredCountry: 'Ireland', // Default
+            preferredMonth: 1, // Default
+            toObject: vi.fn().mockReturnValue({ 
+                _id: 'user456',
+                firstName: 'Michael',
+                lastName: 'Delaney',
+                email: 'test@test.com',
+                preferredCountry: 'Ireland',
+                preferredMonth: 1
+            })
+        };
+        
+        const mockUserInstance = {
+            save: vi.fn().mockResolvedValue(savedUser)
+        };
+        User.mockImplementation(() => mockUserInstance);
+
+        await registerUser(req, res);
+
+        // Verify default values are used for preferredCountry cookie
+        expect(res.cookie).toHaveBeenCalledWith(
+            'preferredCountry',
+            'Ireland',
+            expect.any(Object)
+        );
+        
+        // Verify success response
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Account created successfully.'
+            })
+        );
+    });
+});
+
     

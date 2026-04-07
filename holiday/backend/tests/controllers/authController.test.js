@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getSession, logoutUser, registerUser, getUsers, getUserById } from '../../controllers/authController.js';
+import { getSession, logoutUser, registerUser, getUsers, getUserById, updateUser } from '../../controllers/authController.js';
 import{ loginUser } from '../../controllers/authController.js';
 import bcrypt from 'bcryptjs';
 import User from '../../models/User.js';
@@ -60,6 +60,168 @@ describe('getSession', () => { // Test suite for the getSession function
 
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({ loggedIn: false });
+    });
+});
+
+describe('updateUser', () => { // Test for  updateUser function
+    it('returns 400 when no valid fields are provided', async () => { // Test case for empty or invalid update payload
+        const req = {
+            params: {
+                userId: 'user123'
+            },
+            body: {
+                firstName: 'A',
+                lastName: '',
+                phone: '',
+                preferredCountry: '',
+                preferredMonth: 15
+            }
+        };
+        const res = createMockRes();
+
+        await updateUser(req, res);
+
+        expect(User.findByIdAndUpdate).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'No valid fields provided for update.'
+        });
+    });
+
+    it('updates user successfully and sets preferredCountry cookie when country changes', async () => { // Test case for a successful profile update
+        const req = {
+            params: {
+                userId: 'user123'
+            },
+            body: {
+                firstName: 'John',
+                lastName: 'Murphy',
+                phone: '1234567890',
+                preferredCountry: 'France',
+                preferredMonth: 8
+            }
+        };
+        const res = createMockRes();
+
+        const updatedUser = { // Mock updated user data returned from the database after update
+            _id: 'user123',
+            firstName: 'John',
+            lastName: 'Murphy',
+            email: 'john@test.com',
+            phone: '1234567890',
+            preferredCountry: 'France',
+            preferredMonth: 8
+        };
+
+        const updateChain = { // Mock the chainable query returned by User.findByIdAndUpdate()
+            select: vi.fn().mockResolvedValue(updatedUser)
+        };
+
+        User.findByIdAndUpdate = vi.fn().mockReturnValue(updateChain);
+
+        await updateUser(req, res);
+
+        expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+            'user123',
+            {
+                firstName: 'John',
+                lastName: 'Murphy',
+                phone: '1234567890',
+                preferredCountry: 'France',
+                preferredMonth: 8
+            },
+            { new: true, runValidators: true }
+        );
+        expect(updateChain.select).toHaveBeenCalledWith('-passwordHash');
+        expect(res.cookie).toHaveBeenCalledWith(
+            'preferredCountry',
+            'France',
+            expect.any(Object)
+        );
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'User updated successfully.',
+            user: updatedUser
+        });
+    });
+
+    it('returns 404 when user is not found', async () => { // Test case for a missing user record
+        const req = {
+            params: {
+                userId: 'missing-user'
+            },
+            body: {
+                firstName: 'John'
+            }
+        };
+        const res = createMockRes();
+
+        const updateChain = { // Mock the chainable query to return null, simulating user not found
+            select: vi.fn().mockResolvedValue(null)
+        };
+
+        User.findByIdAndUpdate = vi.fn().mockReturnValue(updateChain);
+
+        await updateUser(req, res);
+
+        expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+            'missing-user',
+            { firstName: 'John' },
+            { new: true, runValidators: true }
+        );
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'User not found.'
+        });
+    });
+
+    it('returns 400 when user ID format is invalid (CastError)', async () => { // Test case for invalid MongoDB ObjectId format
+        const req = {
+            params: {
+                userId: 'invalid-id-format'
+            },
+            body: {
+                firstName: 'John'
+            }
+        };
+        const res = createMockRes();
+
+        const castError = new Error('Invalid ObjectId');
+        castError.name = 'CastError';
+
+        User.findByIdAndUpdate = vi.fn().mockReturnValue({ // Mock the chainable query to throw a CastError when trying to update with an invalid ID
+            select: vi.fn().mockRejectedValue(castError)
+        });
+
+        await updateUser(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Invalid user ID.'
+        });
+    });
+
+    it('returns 500 when database update fails', async () => { // Test case for a generic server error during update
+        const req = {
+            params: {
+                userId: 'user123'
+            },
+            body: {
+                firstName: 'John'
+            }
+        };
+        const res = createMockRes();
+
+        User.findByIdAndUpdate = vi.fn().mockReturnValue({
+            select: vi.fn().mockRejectedValue(new Error('Database connection failed'))
+        });
+
+        await updateUser(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+            message: 'Server error.'
+        });
     });
 });
 

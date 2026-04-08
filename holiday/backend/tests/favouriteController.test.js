@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { addSavedHoliday } from '../controllers/favouriteController.js';
+import { addSavedHoliday, getSavedHolidays } from '../controllers/favouriteController.js';
 import Favourite from '../models/Favourite.js';
 import Holiday from '../models/Holiday.js';
 
@@ -150,6 +150,120 @@ describe('addSavedHoliday', () => { // Test for saving a holiday to favourites
 		Holiday.findById = vi.fn().mockRejectedValue(new Error('Database error'));
 
 		await addSavedHoliday(req, res);
+
+		expect(res.status).toHaveBeenCalledWith(500);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Server error.'
+		});
+	});
+});
+
+describe('getSavedHolidays', () => { // Test for retrieving user's saved holidays
+	it('returns 401 when the user is not logged in', async () => { // Test case for missing session user
+		const req = {
+			session: {}
+		};
+		const res = createMockRes();
+
+		await getSavedHolidays(req, res);
+
+		expect(Favourite.find).not.toHaveBeenCalled(); // Database should not be queried if user is not logged in
+		expect(res.status).toHaveBeenCalledWith(401);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'You must be logged in to view your saved holidays.'
+		});
+	});
+
+	it('returns 200 with empty array when user has no saved holidays', async () => { // Test case for user with no favorites
+		const req = {
+			session: { user: { id: 'user123' } }
+		};
+		const res = createMockRes();
+
+		const findChain = { // Mock the chainable query to return an empty array, simulating a user with no saved holidays
+			populate: vi.fn().mockReturnValue({
+				sort: vi.fn().mockResolvedValue([])
+			})
+		};
+
+		Favourite.find = vi.fn().mockReturnValue(findChain);
+
+		await getSavedHolidays(req, res);
+
+		expect(Favourite.find).toHaveBeenCalledWith({ user: 'user123' }); // Verify query filters by user ID
+		expect(findChain.populate).toHaveBeenCalledWith('holiday'); // Verify holiday details are populated
+		expect(findChain.populate('holiday').sort).toHaveBeenCalledWith({ createdAt: -1 }); // Verify sorting by most recent first
+		expect(res.status).toHaveBeenCalledWith(200);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Saved holidays retrieved successfully.',
+			count: 0,
+			savedHolidays: []
+		});
+	});
+
+	it('returns 200 with saved holidays when user has favourites', async () => { // Test case for successful retrieval of multiple saved holidays
+		const req = {
+			session: { user: { id: 'user123' } }
+		};
+		const res = createMockRes();
+
+		const mockSavedHolidays = [ // Mock data for saved holidays, simulating a user with 3 saved holidays
+			{
+				_id: 'saved1',
+				user: 'user123',
+				holiday: { _id: 'holiday1', name: 'Paris', country: 'France' },
+				createdAt: new Date('2024-04-08')
+			},
+			{
+				_id: 'saved2',
+				user: 'user123',
+				holiday: { _id: 'holiday2', name: 'Barcelona', country: 'Spain' },
+				createdAt: new Date('2024-04-07')
+			},
+			{
+				_id: 'saved3',
+				user: 'user123',
+				holiday: { _id: 'holiday3', name: 'Dublin', country: 'Ireland' },
+				createdAt: new Date('2024-04-06')
+			}
+		];
+
+		const findChain = { // Mock successful query returning saved holidays
+			populate: vi.fn().mockReturnValue({
+				sort: vi.fn().mockResolvedValue(mockSavedHolidays)
+			})
+		};
+
+		Favourite.find = vi.fn().mockReturnValue(findChain); 
+
+		await getSavedHolidays(req, res);
+
+		expect(Favourite.find).toHaveBeenCalledWith({ user: 'user123' });
+		expect(findChain.populate).toHaveBeenCalledWith('holiday');
+		expect(findChain.populate('holiday').sort).toHaveBeenCalledWith({ createdAt: -1 });
+		expect(res.status).toHaveBeenCalledWith(200);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Saved holidays retrieved successfully.',
+			count: 3,
+			savedHolidays: mockSavedHolidays
+		});
+	});
+
+	it('returns 500 when database query fails', async () => { // Test case for server error during retrieval
+		const req = {
+			session: { user: { id: 'user123' } }
+		};
+		const res = createMockRes();
+
+		const findChain = {
+			populate: vi.fn().mockReturnValue({
+				sort: vi.fn().mockRejectedValue(new Error('Database connection failed'))
+			})
+		};
+
+		Favourite.find = vi.fn().mockReturnValue(findChain);
+
+		await getSavedHolidays(req, res);
 
 		expect(res.status).toHaveBeenCalledWith(500);
 		expect(res.json).toHaveBeenCalledWith({

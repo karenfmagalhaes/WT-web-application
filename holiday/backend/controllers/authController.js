@@ -5,7 +5,7 @@
  */
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
-import { UserSchema } from "../models/User.js";
+import User from "../models/User.js";
 
 
 // Helper: Server-side validation for registration

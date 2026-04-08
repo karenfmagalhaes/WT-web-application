@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { addSavedHoliday, getSavedHolidays } from '../controllers/favouriteController.js';
+import { addSavedHoliday, getSavedHolidays, deleteSavedHoliday } from '../controllers/favouriteController.js';
 import Favourite from '../models/Favourite.js';
 import Holiday from '../models/Holiday.js';
 
@@ -264,6 +264,110 @@ describe('getSavedHolidays', () => { // Test for retrieving user's saved holiday
 		Favourite.find = vi.fn().mockReturnValue(findChain);
 
 		await getSavedHolidays(req, res);
+
+		expect(res.status).toHaveBeenCalledWith(500);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Server error.'
+		});
+	});
+});
+
+describe('deleteSavedHoliday', () => { // Test for removing a holiday from favourites
+	it('returns 401 when the user is not logged in', async () => { // Test case for missing session user
+		const req = {
+			session: {},
+			params: { savedId: 'saved123' }
+		};
+		const res = createMockRes();
+
+		await deleteSavedHoliday(req, res);
+
+		expect(Favourite.findOneAndDelete).not.toHaveBeenCalled(); // Database should not be queried if user is not logged in
+		expect(res.status).toHaveBeenCalledWith(401);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'You must be logged in to remove a saved holiday.'
+		});
+	});
+
+	it('returns 404 when saved holiday is not found', async () => { // Test case for missing or non-owned saved holiday
+		const req = {
+			session: { user: { id: 'user123' } },
+			params: { savedId: 'saved-not-found' }
+		};
+		const res = createMockRes();
+
+		Favourite.findOneAndDelete = vi.fn().mockResolvedValue(null); // Simulate not found or not owned by user
+
+		await deleteSavedHoliday(req, res);
+
+		expect(Favourite.findOneAndDelete).toHaveBeenCalledWith({
+			_id: 'saved-not-found',
+			user: 'user123'
+		}); // Verify query filters by both ID and user
+		expect(res.status).toHaveBeenCalledWith(404);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Saved holiday not found.'
+		});
+	});
+
+	it('returns 200 when saved holiday is successfully deleted', async () => { // Test case for successful removal
+		const req = {
+			session: { user: { id: 'user123' } },
+			params: { savedId: 'saved123' }
+		};
+		const res = createMockRes();
+
+		const deletedHoliday = { // mock deleted saved holiday 
+			_id: 'saved123',
+			user: 'user123',
+			holiday: 'holiday123',
+			createdAt: new Date('2024-04-08')
+		};
+
+		Favourite.findOneAndDelete = vi.fn().mockResolvedValue(deletedHoliday); // Simulate successful deletion
+
+		await deleteSavedHoliday(req, res);
+
+		expect(Favourite.findOneAndDelete).toHaveBeenCalledWith({
+			_id: 'saved123',
+			user: 'user123'
+		});
+		expect(res.status).toHaveBeenCalledWith(200);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Holiday removed from favourites.'
+		});
+	});
+
+	it('returns 400 when saved holiday ID format is invalid (CastError)', async () => { // Test case for invalid MongoDB ObjectId format
+		const req = {
+			session: { user: { id: 'user123' } },
+			params: { savedId: 'invalid-id-format' }
+		};
+		const res = createMockRes();
+
+		const castError = new Error('Invalid ObjectId'); // Simulate Mongoose CastError for invalid ID format
+		castError.name = 'CastError';
+
+		Favourite.findOneAndDelete = vi.fn().mockRejectedValue(castError); // Simulate database throwing a CastError when trying to delete with an invalid ID
+
+		await deleteSavedHoliday(req, res);
+
+		expect(res.status).toHaveBeenCalledWith(400);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Invalid saved holiday ID.'
+		});
+	});
+
+	it('returns 500 when database delete operation fails', async () => { // Test case for server error during deletion
+		const req = {
+			session: { user: { id: 'user123' } },
+			params: { savedId: 'saved123' }
+		};
+		const res = createMockRes();
+
+		Favourite.findOneAndDelete = vi.fn().mockRejectedValue(new Error('Database connection failed'));
+
+		await deleteSavedHoliday(req, res);
 
 		expect(res.status).toHaveBeenCalledWith(500);
 		expect(res.json).toHaveBeenCalledWith({

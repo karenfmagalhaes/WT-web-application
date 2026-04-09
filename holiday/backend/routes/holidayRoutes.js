@@ -12,6 +12,8 @@ import {
   deleteHoliday,
 } from "../controllers/holidayController.js";
 
+//TODO: holiday create/update/delete routes have no middleware checking if the user is actually an admin. Any logged-in user can access them
+
 const routes = (app) => {
   app
     .route("/holidays")

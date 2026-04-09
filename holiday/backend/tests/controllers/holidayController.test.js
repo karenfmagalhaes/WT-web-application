@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getHolidays } from '../../controllers/holidayController.js';
+import { getHolidays, getHolidayById } from '../../controllers/holidayController.js';
 import Holiday from '../../models/Holiday.js';
 
 vi.mock('../../models/Holiday.js');
@@ -137,6 +137,80 @@ describe('getHolidays', () => { // Test for the getHolidays controller function
 		Holiday.find = vi.fn().mockReturnValue({ sort: sortMock });
 
 		await getHolidays(req, res, next);
+
+		expect(next).toHaveBeenCalledWith(dbError);
+		expect(res.status).not.toHaveBeenCalled();
+		expect(res.json).not.toHaveBeenCalled();
+	});
+});
+
+describe('getHolidayById', () => { // Test suite for retrieving one holiday by its ID
+	it('returns 200 and the holiday when a valid holiday exists', async () => { // happy path
+		const req = { params: { holidayId: 'holiday123' } };
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const mockHoliday = {
+			_id: 'holiday123',
+			name: 'New Year',
+			country: 'Ireland',
+			month: 1,
+		};
+
+		// Simulate finding a matching holiday record
+		Holiday.findById = vi.fn().mockResolvedValue(mockHoliday);
+
+		await getHolidayById(req, res, next);
+
+		expect(Holiday.findById).toHaveBeenCalledWith('holiday123');
+		expect(res.status).toHaveBeenCalledWith(200);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Holiday retrieved successfully.',
+			holiday: mockHoliday,
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 404 when holiday does not exist', async () => { // valid ID format but no record found
+		const req = { params: { holidayId: 'missingHoliday' } }; 
+		const res = createMockRes();
+		const next = vi.fn();
+
+		Holiday.findById = vi.fn().mockResolvedValue(null); // Simulate no holiday found with the given ID
+
+		await getHolidayById(req, res, next);
+
+		expect(Holiday.findById).toHaveBeenCalledWith('missingHoliday');
+		expect(res.status).toHaveBeenCalledWith(404);
+		expect(res.json).toHaveBeenCalledWith({ message: 'Holiday not found.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 400 when holidayId is invalid (CastError)', async () => { // invalid Mongo ObjectId shape
+		const req = { params: { holidayId: 'invalid-id' } };
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const castError = new Error('Invalid ObjectId');
+		castError.name = 'CastError';
+		Holiday.findById = vi.fn().mockRejectedValue(castError);
+
+		await getHolidayById(req, res, next);
+
+		expect(res.status).toHaveBeenCalledWith(400);
+		expect(res.json).toHaveBeenCalledWith({ message: 'Invalid holiday ID.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('calls next(error) for unexpected database errors', async () => { // ensures middleware chain handles generic failures
+		const req = { params: { holidayId: 'holiday123' } };
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const dbError = new Error('Database failure');
+		Holiday.findById = vi.fn().mockRejectedValue(dbError);
+
+		await getHolidayById(req, res, next);
 
 		expect(next).toHaveBeenCalledWith(dbError);
 		expect(res.status).not.toHaveBeenCalled();

@@ -7,7 +7,6 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 
-
 // Helper: Server-side validation for registration
 const validateRegisterInput = (data) => {
   const errors = {};
@@ -61,12 +60,22 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "Validation failed.", errors });
     }
 
-    const { firstName, lastName, email, password, phone, preferredCountry, preferredMonth } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      phone,
+      preferredCountry,
+      preferredMonth,
+    } = req.body;
 
     // Check if email already exists
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      return res.status(409).json({ message: "An account with this email already exists." });
+      return res
+        .status(409)
+        .json({ message: "An account with this email already exists." });
     }
 
     // Hash password before saving
@@ -91,6 +100,7 @@ export const registerUser = async (req, res) => {
       id: savedUser._id,
       email: savedUser.email,
       firstName: savedUser.firstName,
+      role: savedUser.role,
     };
 
     // Set a cookie to track the user's preferred country (client-side state)
@@ -107,7 +117,9 @@ export const registerUser = async (req, res) => {
     });
   } catch (error) {
     console.error("registerUser error:", error);
-    return res.status(500).json({ message: "Server error during registration." });
+    return res
+      .status(500)
+      .json({ message: "Server error during registration." });
   }
 };
 
@@ -139,6 +151,7 @@ export const loginUser = async (req, res) => {
       id: user._id,
       email: user.email,
       firstName: user.firstName,
+      role: user.role,
     };
 
     // Set a cookie with the user's preferred country preference
@@ -175,7 +188,9 @@ export const logoutUser = (req, res) => {
   // Destroy the server-side session
   req.session.destroy((err) => {
     if (err) {
-      return res.status(500).json({ message: "Could not log out. Please try again." });
+      return res
+        .status(500)
+        .json({ message: "Could not log out. Please try again." });
     }
 
     // Clear the preference cookies on logout
@@ -185,7 +200,6 @@ export const logoutUser = (req, res) => {
     return res.status(200).json({ message: "Logged out successfully." });
   });
 };
-
 
 // GET /session — Check if user is logged in
 export const getSession = (req, res) => {
@@ -200,7 +214,9 @@ export const getUsers = async (req, res) => {
   try {
     // Exclude password hashes from the response
     const users = await User.find({}).select("-passwordHash");
-    return res.status(200).json({ message: "Users retrieved.", count: users.length, users });
+    return res
+      .status(200)
+      .json({ message: "Users retrieved.", count: users.length, users });
   } catch (error) {
     console.error("getUsers error:", error);
     return res.status(500).json({ message: "Server error." });
@@ -228,12 +244,15 @@ export const getUserById = async (req, res) => {
 // PUT /user/:userId — Update a user's profile
 export const updateUser = async (req, res) => {
   try {
-    const { firstName, lastName, phone, preferredCountry, preferredMonth } = req.body;
+    const { firstName, lastName, phone, preferredCountry, preferredMonth } =
+      req.body;
 
     // Build update object with only allowed fields (prevent overwriting passwordHash etc.)
     const updateData = {};
-    if (firstName && firstName.trim().length >= 2) updateData.firstName = firstName.trim();
-    if (lastName && lastName.trim().length >= 2) updateData.lastName = lastName.trim();
+    if (firstName && firstName.trim().length >= 2)
+      updateData.firstName = firstName.trim();
+    if (lastName && lastName.trim().length >= 2)
+      updateData.lastName = lastName.trim();
     if (phone) updateData.phone = phone;
     if (preferredCountry) updateData.preferredCountry = preferredCountry;
     if (preferredMonth && preferredMonth >= 1 && preferredMonth <= 12) {
@@ -241,13 +260,15 @@ export const updateUser = async (req, res) => {
     }
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ message: "No valid fields provided for update." });
+      return res
+        .status(400)
+        .json({ message: "No valid fields provided for update." });
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.userId,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).select("-passwordHash");
 
     if (!updatedUser) {
@@ -262,7 +283,9 @@ export const updateUser = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ message: "User updated successfully.", user: updatedUser });
+    return res
+      .status(200)
+      .json({ message: "User updated successfully.", user: updatedUser });
   } catch (error) {
     if (error.name === "CastError") {
       return res.status(400).json({ message: "Invalid user ID." });
@@ -281,7 +304,10 @@ export const deleteUser = async (req, res) => {
     }
 
     // If the deleted user is the current session user, destroy the session
-    if (req.session.user && req.session.user.id.toString() === req.params.userId) {
+    if (
+      req.session.user &&
+      req.session.user.id.toString() === req.params.userId
+    ) {
       req.session.destroy();
       res.clearCookie("preferredCountry");
       res.clearCookie("lastLogin");

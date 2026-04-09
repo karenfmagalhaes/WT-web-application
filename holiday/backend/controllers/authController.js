@@ -6,7 +6,6 @@
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import User from "../models/User.js";
-import { UserSchema } from "../models/User.js";
 
 // Helper: Server-side validation for registration
 const validateRegisterInput = (data) => {

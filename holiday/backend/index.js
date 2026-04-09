@@ -1,47 +1,54 @@
 /**
  * index.js
  * Main entry point for the Holiday Calendar backend server.
+ * Sets up Express, MongoDB, session middleware, and all routes.
  * Authors: Karen Ferreira Magalhaes, Nataly Fonseca Mendes, Percy Focazio-Moran, Rafiq Abudulai
  */
+import 'dotenv/config';
 import express from "express";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import cors from "cors";
 import session from "express-session";
 import cookieParser from "cookie-parser";
-import routes from "./routes/authRoutes.js";
+import MongoStore from "connect-mongo";
+
+// Route imports
+import authRoutes from "./routes/authRoutes.js";
 import holidayRoutes from "./routes/holidayRoutes.js";
 import favouriteRoutes from "./routes/favouriteRoutes.js";
-import suggestionRoutes from "./routes/suggestionRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import suggestionRoutes from "./routes/suggestionRoutes.js";
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/holidaysDB";
 
-// mongo connection
+// MongoDB connection using URI from environment variable
 mongoose.Promise = global.Promise;
-mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/holidaysDB") //to make it not hardcoded
+mongoose.connect(MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
-// body parser
+// Body parser middleware — parse JSON and URL-encoded form data
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// cors
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true,
-  }),
-); //this just closes it so not all origins are allwoed
+// CORS — allow the frontend app to send credentials (session cookies)
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true,
+}));
+
 app.use(cookieParser());
+
+// Session middleware — persist sessions in MongoDB
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "change-this-to-a-real-secret",
+    secret: process.env.SESSION_SECRET || "holidayapp_dev_secret",
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({ mongoUrl: MONGO_URI }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
@@ -50,13 +57,14 @@ app.use(
   }),
 );
 
-routes(app);
+// Mount all route modules
+authRoutes(app);
 holidayRoutes(app);
 favouriteRoutes(app);
-suggestionRoutes(app);
 adminRoutes(app);
+suggestionRoutes(app);
 
-app.get("/", (req, res) => res.send(`Application is running on port ${PORT}`));
+app.get("/", (_req, res) => res.send(`Application is running on port ${PORT}`));
 
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 

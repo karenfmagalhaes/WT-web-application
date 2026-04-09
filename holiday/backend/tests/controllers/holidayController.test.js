@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getHolidays, getHolidayById } from '../../controllers/holidayController.js';
+import { getHolidays, getHolidayById, addHoliday } from '../../controllers/holidayController.js';
 import Holiday from '../../models/Holiday.js';
 
 vi.mock('../../models/Holiday.js');
@@ -211,6 +211,153 @@ describe('getHolidayById', () => { // Test suite for retrieving one holiday by i
 		Holiday.findById = vi.fn().mockRejectedValue(dbError);
 
 		await getHolidayById(req, res, next);
+
+		expect(next).toHaveBeenCalledWith(dbError);
+		expect(res.status).not.toHaveBeenCalled();
+		expect(res.json).not.toHaveBeenCalled();
+	});
+});
+
+describe('addHoliday', () => { // Test case for creating a new holiday record
+	it('returns 400 when validation fails', async () => { // invalid should stop before DB save
+		const req = { // invalid input for all fields to trigger validation errors
+			body: { 
+				name: '',
+				country: '',
+				date: 'invalid-date',
+				month: 15,
+				category: 'InvalidCategory',
+				description: 'x'.repeat(501),
+			},
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		await addHoliday(req, res, next);
+
+		// Constructor should not run when validation rejects request
+		expect(Holiday).not.toHaveBeenCalled();
+		expect(res.status).toHaveBeenCalledWith(400);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Validation failed.',
+			errors: expect.objectContaining({
+				name: 'Holiday name is required.',
+				country: 'Country is required.',
+				date: 'Date must be a valid date.',
+				month: 'Month must be a number between 1 and 12.',
+				description: 'Description must be 500 characters or fewer.',
+			}),
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 201 and saves holiday successfully with normalized fields', async () => { // test case for sucessful holiday creation
+		const req = {
+			body: {
+				name: '  New Year  ',
+				country: '  Ireland  ',
+				date: '2026-01-01',
+				month: '1',
+				category: 'Public',
+				description: '  National celebration  ',
+			},
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const savedHoliday = { // mock saved holiday
+			_id: 'holiday123',
+			name: 'New Year',
+			country: 'Ireland',
+			date: new Date('2026-01-01'),
+			month: 1,
+			category: 'Public',
+			description: 'National celebration',
+		};
+
+		const mockSave = vi.fn().mockResolvedValue(savedHoliday);
+		Holiday.mockImplementation(() => ({ save: mockSave })); 
+
+		await addHoliday(req, res, next);
+
+		expect(Holiday).toHaveBeenCalledWith({
+			name: 'New Year',
+			country: 'Ireland',
+			date: new Date('2026-01-01'),
+			month: 1,
+			category: 'Public',
+			description: 'National celebration',
+		});
+		expect(mockSave).toHaveBeenCalled();
+		expect(res.status).toHaveBeenCalledWith(201);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Holiday added successfully.',
+			holiday: savedHoliday,
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('sets description to undefined when description is not provided', async () => { // optional field handling
+		const req = {
+			body: {
+				name: 'Easter',
+				country: 'Ireland',
+				date: '2026-04-05',
+				month: 4,
+				category: 'Religious',
+			},
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const savedHoliday = {
+			_id: 'holiday456',
+			name: 'Easter',
+			country: 'Ireland',
+			date: new Date('2026-04-05'),
+			month: 4,
+			category: 'Religious',
+		};
+
+		const mockSave = vi.fn().mockResolvedValue(savedHoliday);
+		Holiday.mockImplementation(() => ({ save: mockSave }));
+
+		await addHoliday(req, res, next);
+
+		expect(Holiday).toHaveBeenCalledWith({
+			name: 'Easter',
+			country: 'Ireland',
+			date: new Date('2026-04-05'),
+			month: 4,
+			category: 'Religious',
+			description: undefined,
+		});
+		expect(res.status).toHaveBeenCalledWith(201);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Holiday added successfully.',
+			holiday: savedHoliday,
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('calls next(error) when save fails', async () => { // test case for handling database save errors
+		const req = {
+			body: {
+				name: 'St. Patrick Day',
+				country: 'Ireland',
+				date: '2026-03-17',
+				month: 3,
+				category: 'National',
+			},
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const dbError = new Error('Database failure'); // mock database error
+		const mockSave = vi.fn().mockRejectedValue(dbError);
+		Holiday.mockImplementation(() => ({ save: mockSave }));
+
+		await addHoliday(req, res, next);
 
 		expect(next).toHaveBeenCalledWith(dbError);
 		expect(res.status).not.toHaveBeenCalled();

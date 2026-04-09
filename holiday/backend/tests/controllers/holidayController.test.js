@@ -1,19 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getHolidays, getHolidayById, addHoliday } from '../../controllers/holidayController.js';
+import { getHolidays, getHolidayById, addHoliday, updateHoliday, deleteHoliday } from '../../controllers/holidayController.js';
 import Holiday from '../../models/Holiday.js';
 
 vi.mock('../../models/Holiday.js');
 
-const createMockRes = () => {
-	// Chainable Express response mock: res.status(...).json(...)
+const createMockRes = () => { // Helper function to create a mock response object with chainable status and json methods
 	const res = {};
 	res.status = vi.fn().mockReturnValue(res);
 	res.json = vi.fn().mockReturnValue(res);
 	return res;
 };
 
-beforeEach(() => {
-	// Reset all spies/mocks between test cases
+beforeEach(() => { // Clear all mocks before each test to ensure test isolation
 	vi.clearAllMocks();
 });
 
@@ -358,6 +356,216 @@ describe('addHoliday', () => { // Test case for creating a new holiday record
 		Holiday.mockImplementation(() => ({ save: mockSave }));
 
 		await addHoliday(req, res, next);
+
+		expect(next).toHaveBeenCalledWith(dbError);
+		expect(res.status).not.toHaveBeenCalled();
+		expect(res.json).not.toHaveBeenCalled();
+	});
+});
+
+describe('updateHoliday', () => { // Test case for editing an existing holiday
+	it('returns 400 when provided update fields are invalid', async () => { // validation fails when a field is invalid 
+		const req = {
+			params: { holidayId: 'holiday123' },
+			body: {
+				name: '',
+				month: 13,
+				category: 'InvalidCategory',
+			},
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		await updateHoliday(req, res, next);
+
+		expect(Holiday.findByIdAndUpdate).not.toHaveBeenCalled(); // Database should not be queried if validation fails
+		expect(res.status).toHaveBeenCalledWith(400);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Validation failed.',
+			errors: expect.objectContaining({
+				name: 'Holiday name is required.',
+				month: 'Month must be a number between 1 and 12.',
+				category: expect.stringContaining('Category must be one of:'),
+			}),
+		});
+		expect(next).not.toHaveBeenCalled(); 
+	});
+
+	it('returns 400 when no valid fields are provided for update', async () => { // empty body should be rejected
+		const req = {
+			params: { holidayId: 'holiday123' },
+			body: {},
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		await updateHoliday(req, res, next);
+
+		expect(Holiday.findByIdAndUpdate).not.toHaveBeenCalled();
+		expect(res.status).toHaveBeenCalledWith(400);
+		expect(res.json).toHaveBeenCalledWith({ message: 'No valid fields provided for update.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 200 and updated holiday when update succeeds', async () => { // successful update with valid fields
+		const req = {
+			params: { holidayId: 'holiday123' },
+			body: {
+				name: '  Christmas Day  ',
+				country: '  Ireland  ',
+				date: '2026-12-25',
+				month: '12',
+				category: 'Public',
+				description: '  National celebration  ',
+			},
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const updatedHoliday = { // mock updated holiday returned from database after successful update
+			_id: 'holiday123',
+			name: 'Christmas Day',
+			country: 'Ireland',
+			date: new Date('2026-12-25'),
+			month: 12,
+			category: 'Public',
+			description: 'National celebration',
+		};
+
+		Holiday.findByIdAndUpdate = vi.fn().mockResolvedValue(updatedHoliday); 
+
+		await updateHoliday(req, res, next);
+
+		expect(Holiday.findByIdAndUpdate).toHaveBeenCalledWith(
+			'holiday123',
+			{
+				name: 'Christmas Day',
+				country: 'Ireland',
+				date: new Date('2026-12-25'),
+				month: 12,
+				category: 'Public',
+				description: 'National celebration',
+			},
+			{ new: true, runValidators: true } // should update and return the new document, and run schema validators on update
+		);
+		expect(res.status).toHaveBeenCalledWith(200);
+		expect(res.json).toHaveBeenCalledWith({
+			message: 'Holiday updated successfully.',
+			holiday: updatedHoliday,
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 404 when holiday to update is not found', async () => { // valid request but missing record
+		const req = {
+			params: { holidayId: 'missingHoliday' },
+			body: { name: 'Updated Name' },
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		Holiday.findByIdAndUpdate = vi.fn().mockResolvedValue(null);
+
+		await updateHoliday(req, res, next);
+
+		expect(res.status).toHaveBeenCalledWith(404);
+		expect(res.json).toHaveBeenCalledWith({ message: 'Holiday not found.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 400 when holidayId is invalid (CastError)', async () => { // castError from db when invalid ID format is used
+		const req = {
+			params: { holidayId: 'invalid-id' },
+			body: { name: 'Updated Name' },
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const castError = new Error('Invalid ObjectId');
+		castError.name = 'CastError';
+		Holiday.findByIdAndUpdate = vi.fn().mockRejectedValue(castError);
+
+		await updateHoliday(req, res, next);
+
+		expect(res.status).toHaveBeenCalledWith(400);
+		expect(res.json).toHaveBeenCalledWith({ message: 'Invalid holiday ID.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('calls next(error) when update throws unexpected error', async () => { 
+		const req = {
+			params: { holidayId: 'holiday123' },
+			body: { name: 'Updated Name' },
+		};
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const dbError = new Error('Database failure');
+		Holiday.findByIdAndUpdate = vi.fn().mockRejectedValue(dbError);
+
+		await updateHoliday(req, res, next);
+
+		expect(next).toHaveBeenCalledWith(dbError);
+		expect(res.status).not.toHaveBeenCalled();
+		expect(res.json).not.toHaveBeenCalled();
+	});
+});
+
+describe('deleteHoliday', () => { // Test for deleting an existing holiday
+	it('returns 200 when holiday is deleted successfully', async () => { // holiday is sucessfully deleted
+		const req = { params: { holidayId: 'holiday123' } };
+		const res = createMockRes();
+		const next = vi.fn();
+
+		Holiday.findByIdAndDelete = vi.fn().mockResolvedValue({ _id: 'holiday123' });
+
+		await deleteHoliday(req, res, next);
+
+		expect(Holiday.findByIdAndDelete).toHaveBeenCalledWith('holiday123');
+		expect(res.status).toHaveBeenCalledWith(200);
+		expect(res.json).toHaveBeenCalledWith({ message: 'Holiday deleted successfully.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 404 when holiday does not exist', async () => { // no record found for given id for deletion
+		const req = { params: { holidayId: 'missingHoliday' } };
+		const res = createMockRes();
+		const next = vi.fn();
+
+		Holiday.findByIdAndDelete = vi.fn().mockResolvedValue(null);
+
+		await deleteHoliday(req, res, next);
+
+		expect(res.status).toHaveBeenCalledWith(404);
+		expect(res.json).toHaveBeenCalledWith({ message: 'Holiday not found.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('returns 400 when holidayId is invalid (CastError)', async () => { // castError from db when invalid ID format is used
+		const req = { params: { holidayId: 'invalid-id' } };
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const castError = new Error('Invalid ObjectId');
+		castError.name = 'CastError';
+		Holiday.findByIdAndDelete = vi.fn().mockRejectedValue(castError);
+
+		await deleteHoliday(req, res, next);
+
+		expect(res.status).toHaveBeenCalledWith(400);
+		expect(res.json).toHaveBeenCalledWith({ message: 'Invalid holiday ID.' });
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it('calls next(error) when delete throws unexpected error', async () => { 
+		const req = { params: { holidayId: 'holiday123' } };
+		const res = createMockRes();
+		const next = vi.fn();
+
+		const dbError = new Error('Database failure');
+		Holiday.findByIdAndDelete = vi.fn().mockRejectedValue(dbError);
+
+		await deleteHoliday(req, res, next);
 
 		expect(next).toHaveBeenCalledWith(dbError);
 		expect(res.status).not.toHaveBeenCalled();

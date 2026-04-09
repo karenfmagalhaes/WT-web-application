@@ -14,7 +14,17 @@ const createMockRes = () => {
 };
 
 beforeEach(() => { // Clear all mocks before each test to ensure test isolation
+	vi.restoreAllMocks();
 	vi.clearAllMocks();
+	// Ensure these methods are always spies for call-count assertions
+	vi.spyOn(Holiday, 'findById').mockResolvedValue(undefined);
+	vi.spyOn(Favourite, 'create').mockResolvedValue(undefined);
+	vi.spyOn(Favourite, 'find').mockReturnValue({
+		populate: vi.fn().mockReturnValue({
+			sort: vi.fn().mockResolvedValue([])
+		})
+	});
+	vi.spyOn(Favourite, 'findOneAndDelete').mockResolvedValue(undefined);
 });
 
 describe('addSavedHoliday', () => { // Test for saving a holiday to favourites

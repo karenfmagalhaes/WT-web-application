@@ -501,7 +501,9 @@ describe('registerUser', () => { // Test suite for the registerUser function
             save: vi.fn().mockRejectedValue(new Error('Database save error'))
         };
 
-        User.mockImplementation(() => mockUserInstance); // Mock the User model to return our mock instance
+        User.mockImplementation(function () {
+            return mockUserInstance;
+        }); // Mock the User model to return our mock instance
 
         await registerUser(req, res);
 
@@ -553,7 +555,9 @@ describe('registerUser', () => { // Test suite for the registerUser function
             save: vi.fn().mockResolvedValue(savedUser) // Simulate successful save of the user to the database
         };
 
-        User.mockImplementation(() => mockUserInstance); // Mock the User model to return our mock instance when instantiated
+        User.mockImplementation(function () {
+            return mockUserInstance;
+        }); // Mock the User model to return our mock instance when instantiated
 
         await registerUser(req, res);
 
@@ -629,7 +633,9 @@ describe('registerUser', () => { // Test suite for the registerUser function
         const mockUserInstance = {
             save: vi.fn().mockResolvedValue(savedUser)
         };
-        User.mockImplementation(() => mockUserInstance);
+        User.mockImplementation(function () {
+            return mockUserInstance;
+        });
 
         await registerUser(req, res);
 

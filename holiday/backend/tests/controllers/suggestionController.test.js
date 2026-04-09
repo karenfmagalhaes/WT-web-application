@@ -130,7 +130,9 @@ describe('addSuggestion', () => { // test case for submitting a new suggestion
 		};
 
 		const saveMock = vi.fn().mockResolvedValue(savedSuggestion);
-		Suggestion.mockImplementation(() => ({ save: saveMock }));
+		Suggestion.mockImplementation(function () {
+			return { save: saveMock };
+		});
 
 		await addSuggestion(req, res);
 
@@ -164,7 +166,9 @@ describe('addSuggestion', () => { // test case for submitting a new suggestion
 		const res = createMockRes();
 
 		const saveMock = vi.fn().mockResolvedValue({ _id: 's2' });
-		Suggestion.mockImplementation(() => ({ save: saveMock }));
+		Suggestion.mockImplementation(function () {
+			return { save: saveMock };
+		});
 
 		await addSuggestion(req, res);
 
@@ -193,7 +197,9 @@ describe('addSuggestion', () => { // test case for submitting a new suggestion
 		const res = createMockRes();
 
 		const saveMock = vi.fn().mockRejectedValue(new Error('Database failure'));
-		Suggestion.mockImplementation(() => ({ save: saveMock }));
+		Suggestion.mockImplementation(function () {
+			return { save: saveMock };
+		});
 
 		await addSuggestion(req, res);
 

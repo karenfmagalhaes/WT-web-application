@@ -274,7 +274,9 @@ describe('addHoliday', () => { // Test case for creating a new holiday record
 		};
 
 		const mockSave = vi.fn().mockResolvedValue(savedHoliday);
-		Holiday.mockImplementation(() => ({ save: mockSave })); 
+		Holiday.mockImplementation(function () {
+			return { save: mockSave };
+		}); 
 
 		await addHoliday(req, res, next);
 
@@ -318,7 +320,9 @@ describe('addHoliday', () => { // Test case for creating a new holiday record
 		};
 
 		const mockSave = vi.fn().mockResolvedValue(savedHoliday);
-		Holiday.mockImplementation(() => ({ save: mockSave }));
+		Holiday.mockImplementation(function () {
+			return { save: mockSave };
+		});
 
 		await addHoliday(req, res, next);
 
@@ -353,7 +357,9 @@ describe('addHoliday', () => { // Test case for creating a new holiday record
 
 		const dbError = new Error('Database failure'); // mock database error
 		const mockSave = vi.fn().mockRejectedValue(dbError);
-		Holiday.mockImplementation(() => ({ save: mockSave }));
+		Holiday.mockImplementation(function () {
+			return { save: mockSave };
+		});
 
 		await addHoliday(req, res, next);
 

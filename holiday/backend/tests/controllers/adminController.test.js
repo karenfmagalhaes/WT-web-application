@@ -215,7 +215,9 @@ describe('approveSuggestion', () => { // test for the approveSuggestion function
         };
 
         Suggestion.findById.mockResolvedValue(suggestion); // database return the pending suggestion
-        Holiday.mockImplementation((data) => ({ ...holidayInstance, ...data })); // mock the Holiday constructor to return our fake instance with the provided data
+        Holiday.mockImplementation(function (data) {
+            return { ...holidayInstance, ...data };
+        }); // mock the Holiday constructor to return our fake instance with the provided data
 
         await approveSuggestion(req, res); // call function being tested
 

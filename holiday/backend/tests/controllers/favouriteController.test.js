@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { addSavedHoliday, getSavedHolidays, deleteSavedHoliday } from '../controllers/favouriteController.js';
-import Favourite from '../models/Favourite.js';
-import Holiday from '../models/Holiday.js';
+import { addSavedHoliday, getSavedHolidays, deleteSavedHoliday } from '../../controllers/favouriteController.js';
+import Favourite from '../../models/Favourite.js';
+import Holiday from '../../models/Holiday.js';
 
 vi.mock('../models/Favourite.js');
 vi.mock('../models/Holiday.js');

@@ -4,7 +4,7 @@
  * Sets up Express, MongoDB, session middleware, and all routes.
  * Authors: Karen Ferreira Magalhaes, Nataly Fonseca Mendes, Percy Focazio-Moran, Rafiq Abudulai
  */
-import 'dotenv/config';
+import dotenv from "dotenv";
 import express from "express";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
@@ -12,6 +12,10 @@ import cors from "cors";
 import session from "express-session";
 import cookieParser from "cookie-parser";
 import MongoStore from "connect-mongo";
+
+// Load env values from the repo-root test.env first, then local .env if available.
+dotenv.config({ path: "../../test.env" });
+dotenv.config();
 
 // Route imports
 import authRoutes from "./routes/authRoutes.js";

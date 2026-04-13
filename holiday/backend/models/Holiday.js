@@ -56,12 +56,11 @@ HolidaySchema.index({ country: 1, month: 1 });
 // Text index to support the name search (?search=...)
 HolidaySchema.index({ name: 'text' });
  
-// Pre-save hook. Automatically keep `month` in sync with `date` so they never get out of step.
-HolidaySchema.pre('save', function (next) {
+// Pre-save hook. Keep `month` in sync with `date`.
+HolidaySchema.pre('save', function () {
   if (this.isModified('date') && this.date) {
     this.month = this.date.getMonth() + 1; // getMonth() is 0-indexed
   }
-  next();
 });
   
 export default mongoose.model('Holiday', HolidaySchema);

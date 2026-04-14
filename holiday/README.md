@@ -7,11 +7,9 @@ An interactive international holiday calendar web application that allows users 
 ## Project Structure
 
 ```
-holiday-calendar/
+holiday/
 ├── backend/
-│   ├── config/
-│   │   ├── db.js                        # MongoDB connection setup
-│   │   └── session.js                   # Express session configuration
+│   ├── .babelrc
 │   ├── controllers/
 │   │   ├── adminController.js           # Admin-only operations
 │   │   ├── authController.js            # Register, login, logout, user CRUD
@@ -29,9 +27,19 @@ holiday-calendar/
 │   │   ├── favouriteRoutes.js           # Favourite holiday routes
 │   │   ├── holidayRoutes.js             # Holiday routes
 │   │   └── suggestionRoutes.js          # Suggestion routes
-│   ├── index.js                         # Main entry point
+│   ├── tests/
+│   │   └── controllers/  
+│   │       ├── adminController.test.js         # adminController test case 
+│   │       ├── authController.test.js          # authController test case 
+│   │       ├── favouriteController.test.js.    # favouriteController test case
+│   │       ├── holidayController.test.js       # holidayController test case
+│   │       └── suggestionController.test.js    # suggestionController test case
+│   ├── index.js    # Main entry point
+│   ├── vitest.config.cjs
+│   ├── package-lock.json
 │   └── package.json
 ├── frontend/
+│   ├── README.md
 │   ├── public/
 │   ├── src/
 │   │   ├── assets/
@@ -39,10 +47,13 @@ holiday-calendar/
 │   │   ├── App.css
 │   │   ├── index.css
 │   │   └── main.jsx
+│   ├── eslint.config.js
 │   ├── index.html
+│   ├── vite.config.js
+│   ├── package-lock.json
 │   └── package.json
 ├── README.md
-└── coversheet.pdf
+└── .DS_Store
 ```
 
 ---
@@ -198,7 +209,9 @@ Work was evenly divided among all team members. For further detail, please see t
 |           | + Developed all unit tests                                                      |
 |           |   - Tested each of the functions available                                      |
 |           |   - Fixed any bugs that came up during testing                                  |
-|           | + Created demonstration                                                         |
+|                - Resolved merge conflicts                                                   |
+|           | + Created demo using Bruno API Testing                                          |
+|              + Deployed the API online using Render                                         |
 |___________|_________________________________________________________________________________
 |   Percy   | (a lot of small things)                                                         |
 |           | + Documentation                                                                 |
@@ -214,7 +227,6 @@ Work was evenly divided among all team members. For further detail, please see t
 |   Rafiq   |  (had a lot of stuff happening, still was very active with us)                  |
 |           | + Documentation                                                                 |
 |           |   - Division of Work (w/Percy)                                                  |
-|           |   - ENTER MORE HERE AS YOU SEE                                                  |
 |           | + Communicated and jumped in to help across assignment                          |
 |           | + Began client side development                                                 |
 |___________|_________________________________________________________________________________ -->
@@ -229,3 +241,5 @@ Work was evenly divided among all team members. For further detail, please see t
 - [express-session npm package](https://www.npmjs.com/package/express-session)
 - [connect-mongo npm package](https://www.npmjs.com/package/connect-mongo)
 - [MongoDB Atlas](https://www.mongodb.com/atlas)
+- [Vitest](https://vitest.dev/)
+

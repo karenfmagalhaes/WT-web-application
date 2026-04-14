@@ -1,4 +1,3 @@
-
 # Holiday Calendar
 
 An interactive international holiday calendar web application that allows users to explore public and cultural holidays from around the world.
@@ -143,12 +142,14 @@ holiday-calendar/
 All admin endpoints check that the logged-in session user has the role `'admin'`. Non-admin users receive a `403 Access Denied` response.
 
 **Suggestion management:**
+
 - `GET /admin/suggestions` — Lists all suggestions. Filterable by `?status=pending/approved/rejected`.
 - `PUT /admin/suggestion/:suggestionId/approve` — Approves a suggestion and automatically writes it into the holidays collection.
 - `PUT /admin/suggestion/:suggestionId/reject` — Rejects a suggestion.
 - `DELETE /admin/suggestion/:suggestionId` — Deletes a suggestion entirely.
 
 **User management:**
+
 - `GET /admin/users` — Lists all users (password hashes excluded).
 - `DELETE /admin/user/:userId` — Deletes a user. Admins cannot delete their own account.
 - `PUT /admin/user/:userId/role` — Promotes or demotes a user's role between `'user'` and `'admin'`.
@@ -159,13 +160,13 @@ All admin endpoints check that the logged-in session user has the role `'admin'`
 
 Validation is implemented in every controller before any database operation. Errors are returned as a structured JSON object so the frontend can display field-specific messages.
 
-| Controller | Fields Validated |
-|---|---|
-| `authController` | firstName, lastName, email format, password length |
-| `holidayController` | name, country, date, month range, category enum, description length |
-| `favouriteController` | holidayId presence, holiday existence |
-| `suggestionController` | name, country, date format, description length |
-| `adminController` | role enum, status enum |
+| Controller             | Fields Validated                                                    |
+| ---------------------- | ------------------------------------------------------------------- |
+| `authController`       | firstName, lastName, email format, password length                  |
+| `holidayController`    | name, country, date, month range, category enum, description length |
+| `favouriteController`  | holidayId presence, holiday existence                               |
+| `suggestionController` | name, country, date format, description length                      |
+| `adminController`      | role enum, status enum                                              |
 
 ---
 
@@ -182,7 +183,41 @@ Validation is implemented in every controller before any database operation. Err
 
 ## Division of Labour
 
-Work was evenly divided among all team members.
+Work was evenly divided among all team members. For further detail, please see the below chart:
+
+<!--
+ _____________________________________________________________________________________________
+|   Karen   |   (did initial work and a lot of it)                                            |
+|           | + Initialised the project                                                       |
+|           |   - Started ReadMe, routes, models, index.js                                    |
+|           |   - initialised gitlab                                                          |
+|           |   - Organised Documentation                                                     |
+|           | + Wrote initial routes, models, and controllers                                 |
+|___________|_________________________________________________________________________________
+|  Nataly   |  (more large things)                                                            |
+|           | + Developed all unit tests                                                      |
+|           |   - Tested each of the functions available                                      |
+|           |   - Fixed any bugs that came up during testing                                  |
+|           | + Created demonstration                                                         |
+|___________|_________________________________________________________________________________
+|   Percy   | (a lot of small things)                                                         |
+|           | + Documentation                                                                 |
+|           |   - Division of Work (w/Rafiq)                                                  |
+|           |   - Ensured comments across pages                                               |
+|           | + MongoDB                                                                       |
+|           |   - Initialised and created connection                                          |
+|           |   - Figured out issues regarding connection                                     |
+|           | + Bug Smasher                                                                   |
+|           |   - Fixed bugs throughout program                                               |
+|           |      (MongoDb connection, routes, models, controllers)                          |
+|___________|_________________________________________________________________________________
+|   Rafiq   |  (had a lot of stuff happening, still was very active with us)                  |
+|           | + Documentation                                                                 |
+|           |   - Division of Work (w/Percy)                                                  |
+|           |   - ENTER MORE HERE AS YOU SEE                                                  |
+|           | + Communicated and jumped in to help across assignment                          |
+|           | + Began client side development                                                 |
+|___________|_________________________________________________________________________________ -->
 
 ---
 
@@ -194,4 +229,3 @@ Work was evenly divided among all team members.
 - [express-session npm package](https://www.npmjs.com/package/express-session)
 - [connect-mongo npm package](https://www.npmjs.com/package/connect-mongo)
 - [MongoDB Atlas](https://www.mongodb.com/atlas)
-

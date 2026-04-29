@@ -4,6 +4,8 @@ import { CalendarProvider } from "./context/CalendarContext";
 import Navbar from "./components/ui/Navbar";
 import AppRoutes from "./routes/AppRoutes";
 
+// The shell for the website. Renders navbar.
+// Also router, calendar provider, and authentication provider.
 const App = () => (
   <BrowserRouter>
     <AuthProvider>

@@ -15,10 +15,16 @@ import {
 } from "../api/eventsApi";
 import { DEV_AUTH_BYPASS } from "../utils/env";
 
+// This file manages the events, favourites, suggestions and filters
+// Drag & drop
+// CRUD actions.
+// Data that demo falls back to
 export const CalendarContext = createContext(null);
 
 const FAVORITES_STORAGE_KEY = "calendo:favorites";
 const SUGGESTIONS_STORAGE_KEY = "calendo:suggestions";
+
+// Store data in localStorage
 
 const readStoredCollection = (key) => {
   if (typeof window === "undefined") {
@@ -34,6 +40,8 @@ const readStoredCollection = (key) => {
     return [];
   }
 };
+
+// Store data in localStorage
 
 const writeStoredCollection = (key, items) => {
   if (typeof window === "undefined") {
@@ -96,7 +104,7 @@ const buildDemoEvents = (anchorDate = new Date()) => {
     createDemoEvent(0, 10, 2, {
       title: "International Cat Day",
       description:
-        "The  first featured placeholder holiday so the homepage has some content.",
+        "The  first placeholder holiday so the homepage has some content, if you don't like cats you are a terrible person.",
       color: "#4b4743",
       country: "International",
       type: "Awareness",
@@ -157,6 +165,8 @@ export const CalendarProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const demoEventsInitialized = useRef(false);
+
+  // even in demo mode data persists between refreshes
 
   useEffect(() => {
     writeStoredCollection(FAVORITES_STORAGE_KEY, favorites);

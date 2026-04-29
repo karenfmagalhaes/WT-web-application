@@ -44,6 +44,7 @@ const readStoredCollection = (key) => {
 // Store data in localStorage
 
 const writeStoredCollection = (key, items) => {
+  debugger;
   if (typeof window === "undefined") {
     return;
   }
@@ -150,7 +151,9 @@ const buildLocalEvent = (eventData = {}) => ({
 });
 
 export const CalendarProvider = ({ children }) => {
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState(() =>
+    DEV_AUTH_BYPASS ? buildDemoEvents(new Date()) : [],
+  );
   const [favorites, setFavorites] = useState(() =>
     readStoredCollection(FAVORITES_STORAGE_KEY),
   );
@@ -195,6 +198,7 @@ export const CalendarProvider = ({ children }) => {
   }, []);
 
   const loadEvents = useCallback(async (start, end) => {
+    debugger;
     if (DEV_AUTH_BYPASS) {
       setLoading(true);
       setError("");

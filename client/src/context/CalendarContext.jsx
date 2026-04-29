@@ -44,6 +44,7 @@ const readStoredCollection = (key) => {
 // Store data in localStorage
 
 const writeStoredCollection = (key, items) => {
+  debugger;
   if (typeof window === "undefined") {
     return;
   }
@@ -197,6 +198,7 @@ export const CalendarProvider = ({ children }) => {
   }, []);
 
   const loadEvents = useCallback(async (start, end) => {
+    debugger;
     if (DEV_AUTH_BYPASS) {
       setLoading(true);
       setError("");

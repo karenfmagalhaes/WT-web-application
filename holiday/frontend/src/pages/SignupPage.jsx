@@ -6,7 +6,13 @@ import { useAuth } from "../hooks/useAuth";
 const SignupPage = () => {
   const { signup } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,10 +31,18 @@ const SignupPage = () => {
     setLoading(true);
 
     try {
-      await signup({ name: form.name, email: form.email, password: form.password });
+      await signup({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        password: form.password,
+      });
       navigate("/");
     } catch (errorValue) {
-      setError(errorValue.response?.data?.message || "Could not create account. Try again.");
+      setError(
+        errorValue.response?.data?.message ||
+          "Could not create account. Try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -57,10 +71,17 @@ const SignupPage = () => {
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           {[
             {
-              label: "Name",
-              name: "name",
+              label: "First Name",
+              name: "firstName",
               type: "text",
-              placeholder: "Jane Doe",
+              placeholder: "Jane",
+              auto: "name",
+            },
+            {
+              label: "Last Name",
+              name: "lastName",
+              type: "text",
+              placeholder: "Doe",
               auto: "name",
             },
             {
@@ -100,14 +121,21 @@ const SignupPage = () => {
             </div>
           ))}
 
-          <Button className="mt-2 w-full justify-center" disabled={loading} type="submit">
+          <Button
+            className="mt-2 w-full justify-center"
+            disabled={loading}
+            type="submit"
+          >
             {loading ? "Creating account…" : "Create account"}
           </Button>
         </form>
 
         <p className="mt-7 text-center text-sm text-[#7c7064]">
           Already have an account?{" "}
-          <Link className="font-semibold text-[#6f5844] transition hover:text-[#4d463f]" to="/login">
+          <Link
+            className="font-semibold text-[#6f5844] transition hover:text-[#4d463f]"
+            to="/login"
+          >
             Sign in
           </Link>
         </p>

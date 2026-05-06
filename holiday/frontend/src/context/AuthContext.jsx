@@ -1,4 +1,10 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { getMe, loginUser, logoutUser, signupUser } from "../api/authApi";
 import { DEV_AUTH_BYPASS } from "../utils/env";
 
@@ -46,7 +52,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       const { data } = await loginUser(credentials);
-      localStorage.setItem("token", data.token);
       setUser(data.user);
       return data.user;
     } catch (loginError) {
@@ -68,7 +73,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       const { data } = await signupUser(credentials);
-      localStorage.setItem("token", data.token);
       setUser(data.user);
       return data.user;
     } catch (signupError) {
@@ -91,7 +95,6 @@ export const AuthProvider = ({ children }) => {
       await logoutUser();
     } finally {
       if (!DEV_AUTH_BYPASS) {
-        localStorage.removeItem("token");
         setUser(null);
       }
       setLoading(false);
@@ -109,7 +112,7 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated: Boolean(user),
       isDevAuthBypass: DEV_AUTH_BYPASS,
     }),
-    [user, loading, error, login, signup, logout]
+    [user, loading, error, login, signup, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -3,7 +3,8 @@ import Button from "../ui/Button";
 
 function SignupForm({ onSubmit, loading, error }) {
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
   });

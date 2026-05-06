@@ -11,7 +11,7 @@ const viteBypassFlag = normalizeEnvValue(
 );
 
 export const API_BASE_URL =
-  parcelApiUrl || viteApiUrl || "http://localhost:5000/api";
+  parcelApiUrl || viteApiUrl || "http://localhost:4000"; //changed default to match the backend
 
 // allows Dev mode
 export const DEV_AUTH_BYPASS = (parcelBypassFlag || viteBypassFlag) === "true";

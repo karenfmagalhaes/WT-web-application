@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import CalendarHeader from "../components/calendar/CalendarHeader";
 import DayView from "../components/calendar/DayView";
 import MonthView from "../components/calendar/MonthView";
@@ -7,6 +8,7 @@ import EventModal from "../components/events/EventModal";
 import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
 import { getHolidays } from "../api/holidayApi";
+import { useAuth } from "../hooks/useAuth";
 import { useCalendar } from "../hooks/useCalendar";
 import { useEvents } from "../hooks/useEvents";
 import { holidayToEvent } from "../utils/holidayUtils";
@@ -18,6 +20,11 @@ import {
   getWeekRange,
   isSameDay,
 } from "../utils/dateUtils";
+
+const CATEGORY_OPTIONS = [
+  "Public", "Religious", "Cultural", "National",
+  "Seasonal", "International", "Other",
+];
 
 const MONTH_OPTIONS = [
   "January",
@@ -35,6 +42,7 @@ const MONTH_OPTIONS = [
 ];
 
 const CalendarPage = () => {
+  const { user } = useAuth();
   const {
     currentDate,
     setCurrentDate,
@@ -139,17 +147,16 @@ const CalendarPage = () => {
 
     const query = holidayQuery.trim();
 
-    if (!query) {
-      setHolidayStatus("Enter a holiday name.");
-      setSearchResults([]);
-      return;
-    }
 
     setHolidayStatus("Searching…");
     setSearchResults([]);
 
     try {
-      const { data } = await getHolidays({ search: query });
+      const { data } = await getHolidays({
+        search: query,
+        ...(filters.country !== "all" && { country: filters.country }),
+        ...(filters.type !== "all" && { category: filters.type }),
+      });
       const viewYear = currentDate.getFullYear();
       const matches = (data.holidays ?? []).map((h) => {
         const d = new Date(h.date);
@@ -162,16 +169,8 @@ const CalendarPage = () => {
         return;
       }
 
-      if (matches.length === 1) {
-        setCurrentDate(new Date(matches[0].start));
-        setView("day");
-        openModal(matches[0]);
-        setHolidayStatus("");
-        return;
-      }
-
       setSearchResults(matches);
-      setHolidayStatus(`${matches.length} results found.`);
+      setHolidayStatus(`${matches.length} result${matches.length === 1 ? "" : "s"} found.`);
     } catch {
       setHolidayStatus("Search failed. Please try again.");
     }
@@ -187,6 +186,11 @@ const CalendarPage = () => {
 
   const handleRequestSubmit = async (event) => {
     event.preventDefault();
+
+    if (!user) {
+      setRequestStatus("You must be logged in to submit a suggestion.");
+      return;
+    }
 
     if (!requestForm.name.trim()) {
       setRequestStatus("Add a holiday name first.");
@@ -387,6 +391,19 @@ const CalendarPage = () => {
               type="text"
               value={requestForm.country}
             />
+            <select
+              className="soft-field"
+              onChange={(event) =>
+                setRequestForm((prev) => ({ ...prev, category: event.target.value }))
+              }
+              value={requestForm.category}
+            >
+              {CATEGORY_OPTIONS.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
             <div className="flex gap-2">
               <select
                 className="soft-field flex-1"
@@ -446,7 +463,17 @@ const CalendarPage = () => {
           </form>
 
           {requestStatus ? (
-            <p className="mt-4 text-sm text-[#7d7164]">{requestStatus}</p>
+            <div className="mt-4 flex items-center gap-3">
+              <p className="text-sm text-[#7d7164]">{requestStatus}</p>
+              {!user ? (
+                <Link
+                  className="text-sm font-medium text-[#4d463f] underline underline-offset-2 hover:text-[#7d7164]"
+                  to="/login"
+                >
+                  Log in
+                </Link>
+              ) : null}
+            </div>
           ) : null}
         </section>
       </div>

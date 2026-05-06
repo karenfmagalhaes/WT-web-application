@@ -75,6 +75,15 @@ const Navbar = () => {
             </span>
           ) : null}
 
+          {!user && !isDevAuthBypass ? (
+            <NavLink
+              className="rounded-full border border-[#d8ccbf] bg-[#fffaf3] px-4 py-2 text-sm text-[#6c6257] transition hover:bg-[#f2eadf] hover:text-[#453d36]"
+              to="/login"
+            >
+              Log in
+            </NavLink>
+          ) : null}
+
           {user ? (
             <>
               <NavLink

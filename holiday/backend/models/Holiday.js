@@ -32,7 +32,7 @@ export const HolidaySchema = new Schema({
     type: String,
     required: [true, "Category is required."],
     enum: {
-      values: ['Public', 'Religious', 'Cultural', 'National', 'Other', 'All', 'None', 'Unknown', 'Seasonal', 'International'],
+      values: ['Public', 'Religious', 'Cultural', 'National', 'Other', 'Seasonal', 'International', 'Unknown'],
       message: '{VALUE} is not a valid category.'
     }
   },

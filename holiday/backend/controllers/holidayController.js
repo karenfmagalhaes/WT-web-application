@@ -9,7 +9,7 @@ import Holiday from "../models/Holiday.js";
 // Valid category values for holidays
 const VALID_CATEGORIES = [
   "Public", "Religious", "Cultural", "National",
-  "Other", "All", "None", "Unknown", "Seasonal", "International"
+  "Other", "Seasonal", "International", "Unknown"
 ];
 
 // Helper: Server-side validation for a holiday

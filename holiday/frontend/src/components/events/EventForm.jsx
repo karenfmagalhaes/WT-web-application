@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
 import { useCalendar } from "../../hooks/useCalendar";
 import { useRecurrence } from "../../hooks/useRecurrence";
 import { toDateTimeLocalValue } from "../../utils/dateUtils";
@@ -20,6 +21,7 @@ const EMPTY_FORM = {
 };
 
 const EventForm = ({ onClose }) => {
+  const { user } = useAuth();
   const {
     selectedEvent,
     addEvent,
@@ -31,6 +33,7 @@ const EventForm = ({ onClose }) => {
   const { rule, update, reset, toRRuleString } = useRecurrence(selectedEvent?.recurrence);
   const [form, setForm] = useState(EMPTY_FORM);
   const isEditing = Boolean(selectedEvent?._id);
+  const isAdmin = user?.role === "admin";
   const favorite = isEditing ? isFavorite(selectedEvent?._id) : false;
 
   useEffect(() => {
@@ -73,38 +76,58 @@ const EventForm = ({ onClose }) => {
   };
 
   const handleDelete = async () => {
-    if (!isEditing) {
-      return;
-    }
-
+    if (!isEditing) return;
     if (window.confirm("Delete this holiday?")) {
       await removeEvent(selectedEvent._id);
       onClose();
     }
   };
 
-  return (
-    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-      {isEditing ? (
-        <div className="soft-subpanel flex items-center justify-between gap-4 px-4 py-4">
-          <div>
-            <p className="soft-label mb-1">
-              Favourite
+  // Read-only view for regular users and guests
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <p className="text-xl font-semibold text-[#4d463f]">{selectedEvent?.title}</p>
+          {selectedEvent?.country || selectedEvent?.type ? (
+            <p className="mt-1 text-xs uppercase tracking-[0.16em] text-[#978b7d]">
+              {[selectedEvent.country, selectedEvent.type].filter(Boolean).join(" · ")}
             </p>
-            <p className="text-sm text-[#5a524a]">
-              Save this holiday to your profile page.
-            </p>
+          ) : null}
+        </div>
+
+        {selectedEvent?.description ? (
+          <p className="text-sm leading-relaxed text-[#5a524a]">{selectedEvent.description}</p>
+        ) : null}
+
+        {user && isEditing ? (
+          <div className="soft-subpanel flex items-center justify-between gap-4 px-4 py-4">
+            <div>
+              <p className="soft-label mb-1">Favourite</p>
+              <p className="text-sm text-[#5a524a]">Save this holiday to your profile page.</p>
+            </div>
+            <Button
+              onClick={() => toggleFavorite(selectedEvent)}
+              type="button"
+              variant={favorite ? "primary" : "outline"}
+            >
+              {favorite ? "Saved" : "Save"}
+            </Button>
           </div>
-          <Button
-            onClick={() => toggleFavorite(selectedEvent)}
-            type="button"
-            variant={favorite ? "primary" : "outline"}
-          >
-            {favorite ? "Saved" : "Save"}
+        ) : null}
+
+        <div className="flex justify-end pt-2">
+          <Button onClick={onClose} type="button" variant="outline">
+            Close
           </Button>
         </div>
-      ) : null}
+      </div>
+    );
+  }
 
+  // Admin-only edit form
+  return (
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
       <input
         className="soft-field"
         name="title"
@@ -182,24 +205,23 @@ const EventForm = ({ onClose }) => {
         />
       </div>
 
-      <div>
-        <label className="soft-label">Color</label>
-        <div className="flex gap-2">
-          {COLORS.map((color) => (
-            <button
-              className={`h-6 w-6 rounded-full border-2 transition ${
-                form.color === color ? "scale-110 border-[#4d463f]" : "border-transparent"
-              }`}
-              key={color}
-              onClick={() => setForm((prev) => ({ ...prev, color }))}
-              style={{ backgroundColor: color }}
-              type="button"
-            />
-          ))}
-        </div>
-      </div>
-
       <RecurrenceSelector reset={reset} rule={rule} update={update} />
+
+      {isEditing ? (
+        <div className="soft-subpanel flex items-center justify-between gap-4 px-4 py-4">
+          <div>
+            <p className="soft-label mb-1">Favourite</p>
+            <p className="text-sm text-[#5a524a]">Save this holiday to your profile page.</p>
+          </div>
+          <Button
+            onClick={() => toggleFavorite(selectedEvent)}
+            type="button"
+            variant={favorite ? "primary" : "outline"}
+          >
+            {favorite ? "Saved" : "Save"}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex justify-between pt-2">
         {isEditing ? (

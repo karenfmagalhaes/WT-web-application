@@ -31,6 +31,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import suggestionRoutes from "./routes/suggestionRoutes.js";
 
 const app = express();
+app.set("trust proxy", 1); // trust Render's reverse proxy so secure cookies work
 const PORT = process.env.PORT || 4000;
 const MONGO_URI =
   process.env.MONGO_URI || "mongodb://127.0.0.1:27017/holidaysDB";

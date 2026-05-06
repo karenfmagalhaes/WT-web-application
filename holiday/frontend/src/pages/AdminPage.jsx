@@ -155,7 +155,7 @@ const AdminPage = () => {
         <section className="soft-panel overflow-hidden">
           <div className="px-6 py-8 lg:px-8">
             <p className="soft-kicker">Admin Dashboard</p>
-            <h1 className="soft-display mt-4 text-[clamp(2.4rem,5vw,4rem)] italic leading-[0.95] tracking-tight text-[#4d463f]">
+            <h1 className="soft-display mt-4 text-[clamp(2.6rem,5vw,4.6rem)] italic leading-[0.95] tracking-tight text-[#4d463f]">
               Manage the platform
             </h1>
             <p className="soft-note mt-4 max-w-2xl text-sm leading-relaxed">

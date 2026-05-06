@@ -470,7 +470,7 @@ const CalendarPage = () => {
                   className="text-sm font-medium text-[#4d463f] underline underline-offset-2 hover:text-[#7d7164]"
                   to="/login"
                 >
-                  Log in
+                  Sign in
                 </Link>
               ) : null}
             </div>

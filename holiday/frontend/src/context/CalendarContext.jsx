@@ -173,7 +173,7 @@ export const CalendarProvider = ({ children }) => {
     }).catch(() => {});
   }, []);
 
-  // Load real favourites and suggestions whenever the logged-in user changes
+  // Load holidays, favourites, and suggestions whenever the logged-in user changes
   useEffect(() => {
     if (DEV_AUTH_BYPASS) return;
 
@@ -182,6 +182,9 @@ export const CalendarProvider = ({ children }) => {
       setSuggestions([]);
       return;
     }
+
+    // Re-fetch holidays so the calendar is always populated after login/signup
+    loadEvents(currentDate).catch(() => {});
 
     getSavedHolidays()
       .then(({ data }) => {
@@ -198,7 +201,7 @@ export const CalendarProvider = ({ children }) => {
         setSuggestions(data.suggestions ?? []);
       })
       .catch(() => {});
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const syncFavoriteSnapshot = useCallback((nextEvent) => {
     if (!nextEvent?._id) return;

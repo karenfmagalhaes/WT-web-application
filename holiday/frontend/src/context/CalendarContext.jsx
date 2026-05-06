@@ -18,6 +18,7 @@ import {
   updateHoliday,
 } from "../api/holidayApi";
 import { addSuggestion, getMySuggestions } from "../api/suggestionApi";
+import { useAuth } from "../hooks/useAuth";
 import { DEV_AUTH_BYPASS } from "../utils/env";
 import { eventToHoliday, holidayToEvent } from "../utils/holidayUtils";
 
@@ -124,6 +125,7 @@ const buildLocalEvent = (eventData = {}) => ({
 });
 
 export const CalendarProvider = ({ children }) => {
+  const { user } = useAuth();
   const [events, setEvents] = useState(() =>
     DEV_AUTH_BYPASS ? buildDemoEvents(new Date()) : []
   );
@@ -171,9 +173,15 @@ export const CalendarProvider = ({ children }) => {
     }).catch(() => {});
   }, []);
 
-  // Load real favourites and suggestions from backend on mount
+  // Load real favourites and suggestions whenever the logged-in user changes
   useEffect(() => {
     if (DEV_AUTH_BYPASS) return;
+
+    if (!user) {
+      setFavorites([]);
+      setSuggestions([]);
+      return;
+    }
 
     getSavedHolidays()
       .then(({ data }) => {
@@ -183,18 +191,14 @@ export const CalendarProvider = ({ children }) => {
         }));
         setFavorites(normalized);
       })
-      .catch(() => {
-        // 401 means not logged in — keep favorites empty
-      });
+      .catch(() => {});
 
     getMySuggestions()
       .then(({ data }) => {
         setSuggestions(data.suggestions ?? []);
       })
-      .catch(() => {
-        // 401 means not logged in — keep suggestions empty
-      });
-  }, []);
+      .catch(() => {});
+  }, [user]);
 
   const syncFavoriteSnapshot = useCallback((nextEvent) => {
     if (!nextEvent?._id) return;

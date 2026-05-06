@@ -7,6 +7,14 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import User from "../models/User.js";
 
+const isProd = process.env.NODE_ENV === "production";
+const prefCookieOptions = (maxAgeDays) => ({
+  maxAge: maxAgeDays * 24 * 60 * 60 * 1000,
+  httpOnly: false,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+});
+
 // Helper: Server-side validation for registration
 const validateRegisterInput = (data) => {
   const errors = {};
@@ -104,11 +112,7 @@ export const registerUser = async (req, res) => {
       role: savedUser.role,
     };
 
-    // Set a cookie to track the user's preferred country (client-side state)
-    res.cookie("preferredCountry", savedUser.preferredCountry, {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      httpOnly: false, // readable by frontend JS
-    });
+    res.cookie("preferredCountry", savedUser.preferredCountry, prefCookieOptions(7));
 
     // Return user without the password hash
     const { passwordHash: _, ...userToReturn } = savedUser.toObject();
@@ -156,17 +160,8 @@ export const loginUser = async (req, res) => {
       role: user.role,
     };
 
-    // Set a cookie with the user's preferred country preference
-    res.cookie("preferredCountry", user.preferredCountry, {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      httpOnly: false,
-    });
-
-    // Set a cookie recording last login timestamp
-    res.cookie("lastLogin", new Date().toISOString(), {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      httpOnly: false,
-    });
+    res.cookie("preferredCountry", user.preferredCountry, prefCookieOptions(7));
+    res.cookie("lastLogin", new Date().toISOString(), prefCookieOptions(30));
 
     return res.status(200).json({
       message: "Login successful.",
@@ -278,12 +273,8 @@ export const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    // Update the preference cookie if country changed
     if (preferredCountry) {
-      res.cookie("preferredCountry", preferredCountry, {
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-        httpOnly: false,
-      });
+      res.cookie("preferredCountry", preferredCountry, prefCookieOptions(7));
     }
 
     return res

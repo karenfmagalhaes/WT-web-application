@@ -52,6 +52,20 @@ const Navbar = () => {
           >
             Profile
           </NavLink>
+          {user?.role === "admin" ? (
+            <NavLink
+              className={({ isActive }) =>
+                `rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+                  isActive
+                    ? "bg-[#ece1d4] text-[#4b433b]"
+                    : "text-[#75695e] hover:bg-[#f4ece2] hover:text-[#4b433b]"
+                }`
+              }
+              to="/admin"
+            >
+              Admin
+            </NavLink>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-3">
@@ -63,7 +77,10 @@ const Navbar = () => {
 
           {user ? (
             <>
-              <div className="flex items-center gap-2">
+              <NavLink
+                className="flex items-center gap-2 rounded-2xl transition hover:bg-[#f2eadf] px-2 py-1 -mx-2 -my-1"
+                to="/account"
+              >
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ece1d4] text-xs font-semibold text-[#5c5046]">
                   {user.name?.[0]?.toUpperCase() ?? "U"}
                 </div>
@@ -71,7 +88,7 @@ const Navbar = () => {
                   <p className="text-sm font-medium text-[#4e463e]">{user.name}</p>
                   <p className="text-xs text-[#948679]">{user.email}</p>
                 </div>
-              </div>
+              </NavLink>
               <button
                 className="rounded-full border border-[#d8ccbf] bg-[#fffaf3] px-4 py-2 text-sm text-[#6c6257] transition hover:bg-[#f2eadf] hover:text-[#453d36]"
                 onClick={handleLogout}

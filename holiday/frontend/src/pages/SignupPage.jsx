@@ -6,7 +6,13 @@ import { useAuth } from "../hooks/useAuth";
 const SignupPage = () => {
   const { signup } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +31,12 @@ const SignupPage = () => {
     setLoading(true);
 
     try {
-      await signup({ name: form.name, email: form.email, password: form.password });
+      await signup({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        password: form.password,
+      });
       navigate("/");
     } catch (errorValue) {
       setError(errorValue.response?.data?.message || "Could not create account. Try again.");
@@ -57,11 +68,18 @@ const SignupPage = () => {
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           {[
             {
-              label: "Name",
-              name: "name",
+              label: "First name",
+              name: "firstName",
               type: "text",
-              placeholder: "Jane Doe",
-              auto: "name",
+              placeholder: "Martin",
+              auto: "given-name",
+            },
+            {
+              label: "Last name",
+              name: "lastName",
+              type: "text",
+              placeholder: "Dow",
+              auto: "family-name",
             },
             {
               label: "Email",

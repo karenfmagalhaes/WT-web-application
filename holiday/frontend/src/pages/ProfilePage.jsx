@@ -43,85 +43,22 @@ const ProfilePage = () => {
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-8 lg:px-8">
       <div className="space-y-7">
-        <section className="soft-panel overflow-hidden">
-          <div className="grid gap-6 px-6 py-8 lg:grid-cols-[minmax(0,1.15fr)_320px] lg:px-8">
-            <div>
-              <p className="soft-kicker">Your Profile</p>
-              <h1 className="soft-display mt-4 text-[clamp(2.6rem,5vw,4.6rem)] italic leading-[0.95] tracking-tight text-[#4d463f]">
-                Your personal holiday room
-              </h1>
-              <p className="soft-note mt-4 max-w-2xl text-sm leading-relaxed">
-                Keep your saved holidays, revisit your favourite traditions, and
-                track the suggestions you have submitted without leaving the same
-                calm visual flow as the calendar itself.
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <span className="soft-chip">
-                  {favorites.length} favourite{favorites.length === 1 ? "" : "s"}
-                </span>
-                <span className="soft-chip">
-                  {suggestions.length} suggestion
-                  {suggestions.length === 1 ? "" : "s"}
-                </span>
-                <span className="soft-chip">
-                  {favoriteCountries.length || 0} countries followed
-                </span>
-              </div>
-            </div>
-
-            <div className="soft-subpanel p-6">
-              <p className="soft-kicker">Account Snapshot</p>
-
-              <div className="mt-5 space-y-3 text-sm text-[#5c534a]">
-                <div className="soft-card px-4 py-3">
-                  <p className="soft-label mb-1">Name</p>
-                  <p className="font-medium">{user?.name || "Unknown user"}</p>
-                </div>
-                <div className="soft-card px-4 py-3">
-                  <p className="soft-label mb-1">Email</p>
-                  <p className="font-medium">{user?.email || "No email available"}</p>
-                </div>
-                <div className="soft-card px-4 py-3">
-                  <p className="soft-label mb-1">Mode</p>
-                  <p className="font-medium">
-                    {isDevAuthBypass ? "Demo mode" : "Authenticated account"}
-                  </p>
-                </div>
-              </div>
-
-              {favoriteTypes.length > 0 ? (
-                <div className="mt-5">
-                  <p className="soft-label">Favourite Types</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {favoriteTypes.map((type) => (
-                      <span
-                        className="rounded-full border border-[#e0d4c7] bg-[#f1e7da] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#6f655b]"
-                        key={type}
-                      >
-                        {type}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="soft-muted-card mt-6 p-4">
-                <p className="soft-kicker">Quick Route</p>
-                <p className="mt-2 text-sm leading-relaxed text-[#6d6257]">
-                  Head back to the live calendar whenever you want to open a day
-                  and continue browsing.
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => navigate("/")}
-                  size="small"
-                  variant="secondary"
-                >
-                  Open Calendar
-                </Button>
-              </div>
-            </div>
+        <section className="soft-panel px-6 py-8 lg:px-8">
+          <p className="soft-kicker">Your Profile</p>
+          <h1 className="soft-display mt-4 text-[clamp(2.6rem,5vw,4.6rem)] italic leading-[0.95] tracking-tight text-[#4d463f]">
+            Your personal holiday room
+          </h1>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <span className="soft-chip">
+              {favorites.length} favourite{favorites.length === 1 ? "" : "s"}
+            </span>
+            <span className="soft-chip">
+              {suggestions.length} suggestion
+              {suggestions.length === 1 ? "" : "s"}
+            </span>
+            <span className="soft-chip">
+              {favoriteCountries.length || 0} countries followed
+            </span>
           </div>
         </section>
 
@@ -252,7 +189,7 @@ const ProfilePage = () => {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-[#4d463f]">
-                            {suggestion.holidayName}
+                            {suggestion.name || suggestion.holidayName}
                           </p>
                           <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[#978b7d]">
                             {formatDayHeading(suggestion.createdAt)}

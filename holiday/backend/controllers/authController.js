@@ -100,6 +100,7 @@ export const registerUser = async (req, res) => {
       id: savedUser._id,
       email: savedUser.email,
       firstName: savedUser.firstName,
+      lastName: savedUser.lastName,
       role: savedUser.role,
     };
 
@@ -151,6 +152,7 @@ export const loginUser = async (req, res) => {
       id: user._id,
       email: user.email,
       firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
     };
 
@@ -173,6 +175,7 @@ export const loginUser = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
+        role: user.role,
         preferredCountry: user.preferredCountry,
         preferredMonth: user.preferredMonth,
       },

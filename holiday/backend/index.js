@@ -5,10 +5,15 @@
  * Authors: Karen Ferreira Magalhaes, Nataly Fonseca Mendes, Percy Focazio-Moran, Rafiq Abudulai
  */
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import path from "path";
 
-// Load env values from the repo-root test.env first, then local .env if available.
-dotenv.config({ path: "../../test.env" });
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load local .env first (guaranteed path), then fall back to repo-root test.env.
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+dotenv.config({ path: path.resolve(__dirname, "../../test.env") });
 
 import express from "express";
 import mongoose from "mongoose";
@@ -40,7 +45,7 @@ mongoose
 // CORS — allow the frontend app to send credentials (session cookies)
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
     credentials: true,
   }),
 );

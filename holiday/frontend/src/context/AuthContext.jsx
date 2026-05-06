@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
-import { getMe, loginUser, logoutUser, signupUser } from "../api/authApi";
+import { getSession, loginUser, logoutUser, registerUser } from "../api/authApi";
 import { DEV_AUTH_BYPASS } from "../utils/env";
 
 export const AuthContext = createContext(null);
@@ -8,6 +8,16 @@ const DEMO_USER = {
   id: "demo-user",
   name: "Demo User",
   email: "demo@local.dev",
+};
+
+const normalizeUser = (raw) => {
+  if (!raw) return null;
+  const name =
+    [raw.firstName, raw.lastName].filter(Boolean).join(" ") ||
+    raw.name ||
+    raw.email ||
+    "User";
+  return { ...raw, name };
 };
 
 export const AuthProvider = ({ children }) => {
@@ -25,8 +35,8 @@ export const AuthProvider = ({ children }) => {
     (async () => {
       try {
         setError("");
-        const { data } = await getMe();
-        setUser(data);
+        const { data } = await getSession();
+        setUser(data.loggedIn ? normalizeUser(data.user) : null);
       } catch {
         setUser(null);
       } finally {
@@ -46,9 +56,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       const { data } = await loginUser(credentials);
-      localStorage.setItem("token", data.token);
-      setUser(data.user);
-      return data.user;
+      const normalized = normalizeUser(data.user);
+      setUser(normalized);
+      return normalized;
     } catch (loginError) {
       setError(loginError.response?.data?.message ?? loginError.message);
       throw loginError;
@@ -67,10 +77,10 @@ export const AuthProvider = ({ children }) => {
         return DEMO_USER;
       }
 
-      const { data } = await signupUser(credentials);
-      localStorage.setItem("token", data.token);
-      setUser(data.user);
-      return data.user;
+      const { data } = await registerUser(credentials);
+      const normalized = normalizeUser(data.user);
+      setUser(normalized);
+      return normalized;
     } catch (signupError) {
       setError(signupError.response?.data?.message ?? signupError.message);
       throw signupError;
@@ -83,19 +93,21 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
 
     try {
-      if (DEV_AUTH_BYPASS) {
-        setUser(DEMO_USER);
-        return;
-      }
-
-      await logoutUser();
-    } finally {
       if (!DEV_AUTH_BYPASS) {
-        localStorage.removeItem("token");
-        setUser(null);
+        await logoutUser();
       }
+    } finally {
+      setUser(DEV_AUTH_BYPASS ? DEMO_USER : null);
       setLoading(false);
     }
+  }, []);
+
+  const patchUser = useCallback((updates) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const { name: _stale, ...rest } = prev;
+      return normalizeUser({ ...rest, ...updates });
+    });
   }, []);
 
   const value = useMemo(
@@ -106,10 +118,11 @@ export const AuthProvider = ({ children }) => {
       login,
       signup,
       logout,
+      patchUser,
       isAuthenticated: Boolean(user),
       isDevAuthBypass: DEV_AUTH_BYPASS,
     }),
-    [user, loading, error, login, signup, logout]
+    [user, loading, error, login, signup, logout, patchUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

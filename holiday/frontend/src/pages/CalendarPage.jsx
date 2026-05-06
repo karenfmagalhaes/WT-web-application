@@ -6,9 +6,10 @@ import WeekView from "../components/calendar/WeekView";
 import EventModal from "../components/events/EventModal";
 import Button from "../components/ui/Button";
 import Spinner from "../components/ui/Spinner";
-import { useAuth } from "../hooks/useAuth";
+import { getHolidays } from "../api/holidayApi";
 import { useCalendar } from "../hooks/useCalendar";
 import { useEvents } from "../hooks/useEvents";
+import { holidayToEvent } from "../utils/holidayUtils";
 import {
   formatDayHeading,
   formatMonthYear,
@@ -44,7 +45,6 @@ const CalendarPage = () => {
     loadEvents,
     openModal,
   } = useCalendar();
-  const { user } = useAuth();
   const {
     events,
     allEvents,
@@ -58,10 +58,16 @@ const CalendarPage = () => {
   } = useEvents();
   const [dateSearch, setDateSearch] = useState({ month: "", day: "" });
   const [holidayQuery, setHolidayQuery] = useState("");
-  const [searchStatus, setSearchStatus] = useState("");
+  const [dateStatus, setDateStatus] = useState("");
+  const [holidayStatus, setHolidayStatus] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const [requestForm, setRequestForm] = useState({
-    name: user?.name || "",
-    holidayName: "",
+    name: "",
+    country: "",
+    month: "",
+    day: "",
+    year: "",
+    category: "Other",
     description: "",
     referenceLink: "",
   });
@@ -96,12 +102,8 @@ const CalendarPage = () => {
     });
   }, [currentDate]);
 
-  useEffect(() => {
-    setRequestForm((prev) => ({
-      ...prev,
-      name: prev.name || user?.name || "",
-    }));
-  }, [user]);
+  // no-op: suggestion form fields are not user-dependent in real auth mode
+
 
   const todaySpotlightEvent = useMemo(() => {
     const today = new Date();
@@ -115,107 +117,153 @@ const CalendarPage = () => {
     const day = Number(dateSearch.day);
 
     if (!month || !day) {
-      setSearchStatus("Choose a month and day.");
+      setDateStatus("Choose a month and day.");
       return;
     }
 
     const maxDay = new Date(currentDate.getFullYear(), month, 0).getDate();
 
     if (day < 1 || day > maxDay) {
-      setSearchStatus(`That month has ${maxDay} days.`);
+      setDateStatus(`That month has ${maxDay} days.`);
       return;
     }
 
     const nextDate = new Date(currentDate.getFullYear(), month - 1, day);
     setCurrentDate(nextDate);
     setView("day");
-    setSearchStatus(`Jumped to ${formatDayHeading(nextDate)}.`);
+    setDateStatus(`Jumped to ${formatDayHeading(nextDate)}.`);
   };
 
-  const handleHolidaySearch = (event) => {
+  const handleHolidaySearch = async (event) => {
     event.preventDefault();
 
-    const query = holidayQuery.trim().toLowerCase();
+    const query = holidayQuery.trim();
 
     if (!query) {
-      setSearchStatus("Enter a holiday name.");
+      setHolidayStatus("Enter a holiday name.");
+      setSearchResults([]);
       return;
     }
 
-    const match = events.find((eventItem) => {
-      if (!eventItem) {
-        return false;
+    setHolidayStatus("Searching…");
+    setSearchResults([]);
+
+    try {
+      const { data } = await getHolidays({ search: query });
+      const viewYear = currentDate.getFullYear();
+      const matches = (data.holidays ?? []).map((h) => {
+        const d = new Date(h.date);
+        d.setFullYear(viewYear);
+        return holidayToEvent({ ...h, date: d.toISOString() });
+      });
+
+      if (matches.length === 0) {
+        setHolidayStatus("No match found.");
+        return;
       }
 
-      return [
-        eventItem.title,
-        eventItem.description,
-        eventItem.country,
-        eventItem.type,
-        eventItem.location,
-        ...(Array.isArray(eventItem.tags)
-          ? eventItem.tags
-          : eventItem.tags
-            ? [eventItem.tags]
-            : []),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
+      if (matches.length === 1) {
+        setCurrentDate(new Date(matches[0].start));
+        setView("day");
+        openModal(matches[0]);
+        setHolidayStatus("");
+        return;
+      }
 
-    if (!match) {
-      setSearchStatus("No match in the current results.");
-      return;
+      setSearchResults(matches);
+      setHolidayStatus(`${matches.length} results found.`);
+    } catch {
+      setHolidayStatus("Search failed. Please try again.");
     }
-
-    setCurrentDate(new Date(match.start));
-    setView("day");
-    openModal(match);
-    setSearchStatus(`Showing ${match.title}.`);
   };
 
-  const handleRequestSubmit = (event) => {
+  const handleSelectResult = (holiday) => {
+    setCurrentDate(new Date(holiday.start));
+    setView("day");
+    openModal(holiday);
+    setSearchResults([]);
+    setHolidayStatus("");
+  };
+
+  const handleRequestSubmit = async (event) => {
     event.preventDefault();
 
-    if (!requestForm.holidayName.trim()) {
+    if (!requestForm.name.trim()) {
       setRequestStatus("Add a holiday name first.");
       return;
     }
+    if (!requestForm.country.trim()) {
+      setRequestStatus("Country is required.");
+      return;
+    }
+    if (!requestForm.month || !requestForm.day) {
+      setRequestStatus("Month and day are required.");
+      return;
+    }
 
-    const suggestion = submitSuggestion({
-      ...requestForm,
-      name: requestForm.name || user?.name || "Anonymous",
-    });
+    const year = requestForm.year ? Number(requestForm.year) : new Date().getFullYear();
+    const date = new Date(year, Number(requestForm.month) - 1, Number(requestForm.day));
 
-    setRequestStatus(`Suggestion saved as ${suggestion.status}.`);
-    setRequestForm({
-      name: user?.name || "",
-      holidayName: "",
-      description: "",
-      referenceLink: "",
-    });
+    try {
+      const suggestion = await submitSuggestion({ ...requestForm, date: date.toISOString() });
+      setRequestStatus(`Suggestion saved as ${suggestion.status}.`);
+      setRequestForm({ name: "", country: "", month: "", day: "", year: "", category: "Other", description: "", referenceLink: "" });
+    } catch {
+      setRequestStatus("Could not save suggestion. Please try again.");
+    }
   };
 
   const renderMonthLayout = () => (
     <>
       <section className="soft-panel px-6 py-6 sm:px-7" id="calendar-home">
-        <div>
-          <p className="soft-kicker">Current Day</p>
-          <h1 className="soft-display mt-3 text-[clamp(2.2rem,4.8vw,4rem)] italic leading-[0.98] tracking-tight text-[#4d463f]">
-            {todaySpotlightEvent?.title || formatDayHeading(new Date())}
-          </h1>
-          <p className="mt-3 text-sm text-[#7a6f62]">
-            {todaySpotlightEvent
-              ? formatDayHeading(new Date(todaySpotlightEvent.start))
-              : formatMonthYear(new Date())}
-          </p>
-          {todaySpotlightEvent?.description ? (
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#75695d]">
-              {todaySpotlightEvent.description}
-            </p>
-          ) : null}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div>
+            <p className="soft-kicker">Current Day</p>
+            <h1 className="soft-display mt-3 text-[clamp(2.2rem,4.8vw,4rem)] italic leading-[0.98] tracking-tight text-[#4d463f]">
+              {todaySpotlightEvent?.title || formatDayHeading(new Date())}
+            </h1>
+            {todaySpotlightEvent?.description ? (
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#75695d]">
+                {todaySpotlightEvent.description}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="pt-2 lg:pt-0">
+            <p className="soft-kicker">Go to Date</p>
+            <form className="mt-3 flex items-center gap-2" onSubmit={handleDateSearch}>
+              <select
+                className="soft-field flex-1 py-2 text-sm"
+                onChange={(event) =>
+                  setDateSearch((prev) => ({ ...prev, month: event.target.value }))
+                }
+                value={dateSearch.month}
+              >
+                {MONTH_OPTIONS.map((month, index) => (
+                  <option key={month} value={index + 1}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="soft-field w-16 py-2 text-sm"
+                max={31}
+                min={1}
+                onChange={(event) =>
+                  setDateSearch((prev) => ({ ...prev, day: event.target.value }))
+                }
+                placeholder="Day"
+                type="number"
+                value={dateSearch.day}
+              />
+              <Button size="small" type="submit">
+                Go
+              </Button>
+            </form>
+            {dateStatus ? (
+              <p className="mt-2 text-sm text-[#7d7164]">{dateStatus}</p>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -232,9 +280,6 @@ const CalendarPage = () => {
                 Search and filter
               </h2>
             </div>
-            <p className="text-sm text-[#8a7e70]">
-              {events.length} of {allEvents.length}
-            </p>
           </div>
 
           <div className="mt-5 space-y-3">
@@ -275,52 +320,15 @@ const CalendarPage = () => {
 
             <form
               className="soft-subpanel grid gap-3 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto]"
-              onSubmit={handleDateSearch}
-            >
-              <div className="grid gap-3 sm:grid-cols-2">
-                <select
-                  className="soft-field"
-                  onChange={(event) =>
-                    setDateSearch((prev) => ({
-                      ...prev,
-                      month: event.target.value,
-                    }))
-                  }
-                  value={dateSearch.month}
-                >
-                  {MONTH_OPTIONS.map((month, index) => (
-                    <option key={month} value={index + 1}>
-                      {month}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  className="soft-field"
-                  max={31}
-                  min={1}
-                  onChange={(event) =>
-                    setDateSearch((prev) => ({
-                      ...prev,
-                      day: event.target.value,
-                    }))
-                  }
-                  placeholder="Day"
-                  type="number"
-                  value={dateSearch.day}
-                />
-              </div>
-              <Button size="small" type="submit">
-                Go to Date
-              </Button>
-            </form>
-
-            <form
-              className="soft-subpanel grid gap-3 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto]"
               onSubmit={handleHolidaySearch}
             >
               <input
                 className="soft-field"
-                onChange={(event) => setHolidayQuery(event.target.value)}
+                onChange={(event) => {
+                  setHolidayQuery(event.target.value);
+                  setSearchResults([]);
+                  setHolidayStatus("");
+                }}
                 placeholder="Search by holiday name"
                 type="text"
                 value={holidayQuery}
@@ -331,8 +339,26 @@ const CalendarPage = () => {
             </form>
           </div>
 
-          {searchStatus ? (
-            <p className="mt-4 text-sm text-[#7d7164]">{searchStatus}</p>
+          {holidayStatus ? (
+            <p className="mt-4 text-sm text-[#7d7164]">{holidayStatus}</p>
+          ) : null}
+
+          {searchResults.length > 0 ? (
+            <div className="mt-4 space-y-2">
+              {searchResults.map((result) => (
+                <button
+                  className="soft-card w-full px-4 py-3 text-left transition hover:bg-[#f2ece3]"
+                  key={result._id}
+                  onClick={() => handleSelectResult(result)}
+                  type="button"
+                >
+                  <p className="text-sm font-semibold text-[#4d463f]">{result.title}</p>
+                  <p className="mt-0.5 text-xs uppercase tracking-[0.16em] text-[#978b7d]">
+                    {[result.country, result.type].filter(Boolean).join(" · ")}
+                  </p>
+                </button>
+              ))}
+            </div>
           ) : null}
         </section>
 
@@ -343,39 +369,66 @@ const CalendarPage = () => {
           </h2>
 
           <form className="mt-5 space-y-3" onSubmit={handleRequestSubmit}>
-            {!user ? (
-              <input
-                className="soft-field"
-                onChange={(event) =>
-                  setRequestForm((prev) => ({
-                    ...prev,
-                    name: event.target.value,
-                  }))
-                }
-                placeholder="Name"
-                type="text"
-                value={requestForm.name}
-              />
-            ) : null}
             <input
               className="soft-field"
               onChange={(event) =>
-                setRequestForm((prev) => ({
-                  ...prev,
-                  holidayName: event.target.value,
-                }))
+                setRequestForm((prev) => ({ ...prev, name: event.target.value }))
               }
               placeholder="Holiday name"
               type="text"
-              value={requestForm.holidayName}
+              value={requestForm.name}
             />
             <input
               className="soft-field"
               onChange={(event) =>
-                setRequestForm((prev) => ({
-                  ...prev,
-                  referenceLink: event.target.value,
-                }))
+                setRequestForm((prev) => ({ ...prev, country: event.target.value }))
+              }
+              placeholder="Country"
+              type="text"
+              value={requestForm.country}
+            />
+            <div className="flex gap-2">
+              <select
+                className="soft-field flex-1"
+                onChange={(event) =>
+                  setRequestForm((prev) => ({ ...prev, month: event.target.value }))
+                }
+                value={requestForm.month}
+              >
+                <option value="">Month</option>
+                {MONTH_OPTIONS.map((month, index) => (
+                  <option key={month} value={index + 1}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="soft-field w-20"
+                max={31}
+                min={1}
+                onChange={(event) =>
+                  setRequestForm((prev) => ({ ...prev, day: event.target.value }))
+                }
+                placeholder="Day"
+                type="number"
+                value={requestForm.day}
+              />
+            </div>
+            <input
+              className="soft-field"
+              max={2100}
+              min={1900}
+              onChange={(event) =>
+                setRequestForm((prev) => ({ ...prev, year: event.target.value }))
+              }
+              placeholder="Year (optional)"
+              type="number"
+              value={requestForm.year}
+            />
+            <input
+              className="soft-field"
+              onChange={(event) =>
+                setRequestForm((prev) => ({ ...prev, referenceLink: event.target.value }))
               }
               placeholder="Reference link (optional)"
               type="url"
@@ -384,10 +437,7 @@ const CalendarPage = () => {
             <textarea
               className="soft-field min-h-[120px] resize-none"
               onChange={(event) =>
-                setRequestForm((prev) => ({
-                  ...prev,
-                  description: event.target.value,
-                }))
+                setRequestForm((prev) => ({ ...prev, description: event.target.value }))
               }
               placeholder="Short note (optional)"
               value={requestForm.description}

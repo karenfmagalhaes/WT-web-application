@@ -26,22 +26,24 @@ const Modal = ({ isOpen, open, onClose, title, children }) => {
       />
       <div
         aria-modal="true"
-        className="soft-panel relative z-10 mx-4 w-full max-w-[640px] p-6 sm:p-7"
+        className="soft-panel relative z-10 mx-4 flex w-full max-w-[640px] max-h-[90vh] flex-col overflow-hidden"
         role="dialog"
       >
-        <div className="mb-5 flex items-center justify-between gap-4">
+        <div className="flex shrink-0 items-center justify-between gap-4 px-6 pt-6 pb-4 sm:px-7 sm:pt-7">
           <h3 className="soft-display text-2xl tracking-tight text-[#4d463f]">
             {title}
           </h3>
           <button
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8ccbf] bg-[#fffaf4] text-lg leading-none text-[#7a6f63] transition hover:bg-[#f2eadf] hover:text-[#4d463f]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d8ccbf] bg-[#fffaf4] text-lg leading-none text-[#7a6f63] transition hover:bg-[#f2eadf] hover:text-[#4d463f]"
             onClick={onClose}
             type="button"
           >
             ×
           </button>
         </div>
-        {children}
+        <div className="overflow-y-auto px-6 pb-6 sm:px-7 sm:pb-7">
+          {children}
+        </div>
       </div>
     </div>
   );

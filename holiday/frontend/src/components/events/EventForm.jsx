@@ -116,11 +116,6 @@ const EventForm = ({ onClose }) => {
           </div>
         ) : null}
 
-        <div className="flex justify-end pt-2">
-          <Button onClick={onClose} type="button" variant="outline">
-            Close
-          </Button>
-        </div>
       </div>
     );
   }

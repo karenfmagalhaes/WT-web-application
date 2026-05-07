@@ -101,7 +101,7 @@ const EventForm = ({ onClose }) => {
         ) : null}
 
         {user && isEditing ? (
-          <div className="soft-subpanel flex items-center justify-between gap-4 px-4 py-4">
+          <div className="soft-field">
             <div>
               <p className="soft-label mb-1">Favourite</p>
               <p className="text-sm text-[#5a524a]">Save this holiday to your profile page.</p>
